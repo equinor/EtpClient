@@ -31,7 +31,12 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- Relevant ETP v1.1 clauses and message types are identified from the protocol PDF in docs/.
+- Basic authentication handling is explicit, secret-safe, and transport assumptions are documented.
+- Public API design is asynchronous, cancellation-aware, and defines subscription and disposal semantics.
+- Required tests are identified: unit coverage plus contract or integration coverage for wire behavior.
+- Diagnostics cover connection lifecycle, protocol errors, and subscription state without leaking secrets.
+- Any protocol deviation or breaking change is documented with versioning impact and rationale.
 
 ## Project Structure
 
@@ -56,39 +61,20 @@ specs/[###-feature]/
 -->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
 src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+└── EtpClient/
+  ├── Connection/
+  ├── Protocol/
+  ├── Subscriptions/
+  └── Diagnostics/
 
 tests/
-├── contract/
-├── integration/
-└── unit/
+├── EtpClient.UnitTests/
+├── EtpClient.IntegrationTests/
+└── EtpClient.ContractTests/
 
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+docs/
+└── ETP_v1.1_for_WITSML_v1411_Imp_Spec_v1.0_Doc_v1.0.pdf
 ```
 
 **Structure Decision**: [Document the selected structure and reference the real

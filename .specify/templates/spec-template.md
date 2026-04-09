@@ -18,6 +18,7 @@
   - Tested independently
   - Deployed independently
   - Demonstrated to users independently
+  - Traced back to the relevant ETP v1.1 clauses when protocol behavior is involved
 -->
 
 ### User Story 1 - [Brief Title] (Priority: P1)
@@ -67,13 +68,10 @@
 
 ### Edge Cases
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
--->
-
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+- How does the client behave when authentication fails or the endpoint rejects Basic auth?
+- What happens when the server sends unsupported, delayed, duplicated, or out-of-order protocol messages?
+- How does a live log subscription behave during cancellation, disconnect, reconnect, or endpoint shutdown?
+- What diagnostics are emitted when connection establishment or message handling fails?
 
 ## Requirements *(mandatory)*
 
@@ -84,16 +82,16 @@
 
 ### Functional Requirements
 
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
+- **FR-001**: The client MUST identify the relevant ETP v1.1 clauses and message types for each protocol-facing behavior.
+- **FR-002**: The client MUST support explicit, secret-safe Basic authentication configuration for endpoint connections.
+- **FR-003**: Consumers MUST be able to establish, cancel, and dispose subscriptions to live log measurements through an async API.
+- **FR-004**: The client MUST expose deterministic error and lifecycle behavior for connection, authentication, and subscription flows.
+- **FR-005**: The client MUST emit actionable diagnostics without logging credentials or other secrets.
 
 *Example of marking unclear requirements:*
 
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+- **FR-006**: The client MUST support [NEEDS CLARIFICATION: exact ETP protocol capabilities or message families beyond live log subscriptions].
+- **FR-007**: The client MUST provide [NEEDS CLARIFICATION: reconnect and retry policy expected by consumers].
 
 ### Key Entities *(include if feature involves data)*
 
@@ -109,20 +107,14 @@
 
 ### Measurable Outcomes
 
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+- **SC-001**: The implemented behavior matches the cited ETP clauses and passes the corresponding automated tests.
+- **SC-002**: Consumers can connect, authenticate, and start a live log subscription without undocumented manual steps.
+- **SC-003**: Failures expose actionable diagnostics that allow a developer to identify whether the issue is auth, transport, protocol, or subscription related.
+- **SC-004**: Public API usage for the feature remains async, cancellation-aware, and documented.
 
 ## Assumptions
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right assumptions based on reasonable defaults
-  chosen when the feature description did not specify certain details.
--->
-
-- [Assumption about target users, e.g., "Users have stable internet connectivity"]
-- [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
-- [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
-- [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]
+- Endpoint operators provide a reachable ETP endpoint that supports Basic authentication over an appropriate secure transport.
+- The protocol PDF in docs/ is the authoritative behavior reference when requirements conflict with secondary material.
+- Scope is limited to the client library behavior; server implementation changes are out of scope.
+- The feature will include the automated tests needed to verify protocol, auth, and subscription behavior.
