@@ -31,7 +31,7 @@ public sealed class EtpSessionManagerTests
             .ReturnsForAnyArgs(Task.CompletedTask);
 
         transport
-            .SendAsync(default, default, default)
+            .SendAsync(default, default, default, default)
             .ReturnsForAnyArgs(ValueTask.CompletedTask);
 
         // Copy frame into the receive buffer and return a completed result
@@ -52,30 +52,18 @@ public sealed class EtpSessionManagerTests
     {
         var instanceId = Guid.NewGuid();
         var w = new AvroWriter();
-        // Header: Int(0), Int(2=OpenSession), Long(2=messageId), Int(2=FinalPart)
-        w.WriteInt(0); w.WriteInt(2); w.WriteLong(2L); w.WriteInt(2);
+        // Header: protocol=0, messageType=2, correlationId=1, messageId=2, flags=FinalPart
+        w.WriteInt(0); w.WriteInt(2); w.WriteLong(1L); w.WriteLong(2L); w.WriteInt(2);
         // applicationName
         w.WriteString("TestServer");
         // applicationVersion
         w.WriteString("1.0");
-        // serverInstanceId (16-byte fixed)
-        w.WriteFixed(instanceId.ToByteArray());
+        // sessionId (UUID string)
+        w.WriteString(instanceId.ToString());
         // supportedProtocols — empty array
         w.WriteArrayStart(0);
-        // supportedDataObjects — empty array
+        // supportedObjects — empty array
         w.WriteArrayStart(0);
-        // supportedCompression — single string
-        w.WriteString("");
-        // supportedFormats — ["xml"]
-        w.WriteArrayStart(1);
-        w.WriteString("xml");
-        w.WriteArrayEnd();
-        // currentDateTime (microseconds)
-        w.WriteLong(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000L);
-        // earliestReliableTime
-        w.WriteLong(0L);
-        // endpointCapabilities — empty map
-        w.WriteMapStart(0);
 
         return w.ToArray();
     }
@@ -83,8 +71,8 @@ public sealed class EtpSessionManagerTests
     private static ReadOnlyMemory<byte> BuildProtocolExceptionFrame()
     {
         var w = new AvroWriter();
-        // Header: Int(0), Int(1000=ProtocolException), Long(2), Int(2=FinalPart)
-        w.WriteInt(0); w.WriteInt(1000); w.WriteLong(2L); w.WriteInt(2);
+        // Header: protocol=0, messageType=1000, correlationId=1, messageId=2, flags=FinalPart
+        w.WriteInt(0); w.WriteInt(1000); w.WriteLong(1L); w.WriteLong(2L); w.WriteInt(2);
         // errorCode (int), message (string)
         w.WriteInt(14);
         w.WriteString("Unsupported protocol");

@@ -12,6 +12,10 @@ internal static partial class EtpClientLog
     [LoggerMessage(1001, LogLevel.Information, "ETP connecting to {EndpointHost}")]
     public static partial void Connecting(ILogger logger, string endpointHost);
 
+    [LoggerMessage(1006, LogLevel.Debug,
+        "ETP using {MessageEncoding} encoding for connection to {EndpointHost}")]
+    public static partial void EncodingSelected(ILogger logger, string endpointHost, EtpMessageEncoding messageEncoding);
+
     [LoggerMessage(1002, LogLevel.Information,
         "ETP session established with '{ServerAppName}' at {EndpointHost}")]
     public static partial void SessionEstablished(ILogger logger, string serverAppName, string endpointHost);

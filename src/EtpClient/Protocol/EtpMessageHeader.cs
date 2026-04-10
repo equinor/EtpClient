@@ -5,7 +5,7 @@ internal static class EtpMessageType
 {
     public const int RequestSession    = 1;
     public const int OpenSession       = 2;
-    public const int CloseSession      = 3;
+    public const int CloseSession      = 5;
     public const int ProtocolException = 1000;
     public const int Acknowledge       = 1001;
 }
@@ -20,11 +20,13 @@ internal static class EtpMessageFlags
 /// <summary>
 /// Binary framing header present at the start of every ETP message.
 /// Reference: ETP v1.1 specification, Protocol 0 (Core) framing.
-/// Fields: protocol (int), messageType (int), messageId (long), messageFlags (int).
+/// Fields: protocol (int), messageType (int), correlationId (long),
+/// messageId (long), messageFlags (int).
 /// </summary>
 internal readonly record struct EtpMessageHeader(
     int Protocol,
     int MessageType,
+    long CorrelationId,
     long MessageId,
     int MessageFlags)
 {
@@ -32,6 +34,7 @@ internal readonly record struct EtpMessageHeader(
     {
         writer.WriteInt(Protocol);
         writer.WriteInt(MessageType);
+        writer.WriteLong(CorrelationId);
         writer.WriteLong(MessageId);
         writer.WriteInt(MessageFlags);
     }
@@ -40,6 +43,7 @@ internal readonly record struct EtpMessageHeader(
         new(
             Protocol:     reader.ReadInt(),
             MessageType:  reader.ReadInt(),
+            CorrelationId: reader.ReadLong(),
             MessageId:    reader.ReadLong(),
             MessageFlags: reader.ReadInt());
 }

@@ -2,6 +2,9 @@
 bin/
 obj/
 
+# .NET test results
+TestResults/
+
 # VS / Rider
 *.user
 *.suo

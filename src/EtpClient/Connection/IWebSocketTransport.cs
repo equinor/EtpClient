@@ -22,8 +22,8 @@ internal interface IWebSocketTransport : IAsyncDisposable
     /// </summary>
     Task ConnectAsync(Uri uri, string authorizationHeaderValue, TimeSpan keepAliveInterval, CancellationToken ct);
 
-    /// <summary>Sends a binary frame to the server.</summary>
-    ValueTask SendAsync(ReadOnlyMemory<byte> buffer, bool endOfMessage, CancellationToken ct);
+    /// <summary>Sends a frame to the server using the specified WebSocket message type.</summary>
+    ValueTask SendAsync(ReadOnlyMemory<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken ct);
 
     /// <summary>Receives the next incoming frame into <paramref name="buffer"/>.</summary>
     ValueTask<ValueWebSocketReceiveResult> ReceiveAsync(Memory<byte> buffer, CancellationToken ct);

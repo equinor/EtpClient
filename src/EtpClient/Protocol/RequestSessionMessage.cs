@@ -38,6 +38,7 @@ internal sealed class RequestSessionMessage
         var header = new EtpMessageHeader(
             Protocol:     0,
             MessageType:  EtpMessageType.RequestSession,
+            CorrelationId: 0,
             MessageId:    messageId,
             MessageFlags: EtpMessageFlags.FinalPart);
         header.WriteTo(w);
@@ -45,9 +46,6 @@ internal sealed class RequestSessionMessage
         // ── Body ──────────────────────────────────────────────────────────────
         w.WriteString(ApplicationName);
         w.WriteString(ApplicationVersion);
-
-        // clientInstanceId: Avro fixed(16) — UUID bytes in standard .NET layout
-        w.WriteFixed(ClientInstanceId.ToByteArray());
 
         // requestedProtocols: array of SupportedProtocol
         w.WriteArrayStart(RequestedProtocols.Count);
@@ -66,26 +64,9 @@ internal sealed class RequestSessionMessage
         }
         w.WriteArrayEnd();
 
-        // supportedDataObjects: empty array
+        // supportedObjects: empty array for a minimal client role handshake
         w.WriteArrayStart(0);
         w.WriteArrayEnd();
-
-        // supportedCompression: empty array<string>
-        w.WriteArrayStart(0);
-        w.WriteArrayEnd();
-
-        // supportedFormats: ["xml"]
-        w.WriteArrayStart(1);
-        w.WriteString("xml");
-        w.WriteArrayEnd();
-
-        // currentDateTime and earliestReliableTime: Unix epoch microseconds
-        long nowMicros = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000L;
-        w.WriteLong(nowMicros);
-        w.WriteLong(nowMicros);
-
-        // serverAuthorizationRequired: false
-        w.WriteBool(false);
 
         return w.ToArray();
     }

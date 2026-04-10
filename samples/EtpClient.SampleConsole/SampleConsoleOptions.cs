@@ -24,6 +24,12 @@ public sealed class SampleConsoleOptions
     public bool ShowSessionDetails { get; set; }
 
     /// <summary>
+    /// ETP message encoding to use for the connection.
+    /// Accepted values: <c>Binary</c> (default) or <c>Json</c>.
+    /// </summary>
+    public EtpMessageEncoding MessageEncoding { get; set; } = EtpMessageEncoding.Binary;
+
+    /// <summary>
     /// Validates that all required fields are present and well-formed.
     /// Returns <see langword="null"/> on success, or a secret-safe message describing what is missing or invalid.
     /// </summary>
@@ -53,5 +59,5 @@ public sealed class SampleConsoleOptions
     /// Call <see cref="Validate"/> first.
     /// </summary>
     public EtpConnectionOptions ToConnectionOptions() =>
-        new(new Uri(EndpointUri!), Username!, Password!);
+        new(new Uri(EndpointUri!), Username!, Password!, messageEncoding: MessageEncoding);
 }

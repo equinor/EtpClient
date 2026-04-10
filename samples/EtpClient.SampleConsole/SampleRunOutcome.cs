@@ -64,6 +64,9 @@ public sealed class SampleRunOutcome
     /// <summary>The endpoint host (without credentials) for display purposes.</summary>
     public string EndpointHost { get; }
 
+    /// <summary>The ETP message encoding used for the session. Null on failure.</summary>
+    public EtpMessageEncoding? MessageEncoding { get; }
+
     private SampleRunOutcome(
         bool succeeded,
         EtpConnectionState finalState,
@@ -72,7 +75,8 @@ public sealed class SampleRunOutcome
         string? failureMessage,
         string? serverApplicationName,
         string? serverApplicationVersion,
-        Guid? serverInstanceId)
+        Guid? serverInstanceId,
+        EtpMessageEncoding? messageEncoding = null)
     {
         Succeeded = succeeded;
         FinalState = finalState;
@@ -82,6 +86,7 @@ public sealed class SampleRunOutcome
         ServerApplicationName = serverApplicationName;
         ServerApplicationVersion = serverApplicationVersion;
         ServerInstanceId = serverInstanceId;
+        MessageEncoding = messageEncoding;
     }
 
     /// <summary>Creates a success outcome from a completed connection result.</summary>
@@ -94,7 +99,8 @@ public sealed class SampleRunOutcome
             failureMessage: null,
             serverApplicationName: result.Session.ServerApplicationName,
             serverApplicationVersion: result.Session.ServerApplicationVersion,
-            serverInstanceId: result.Session.ServerInstanceId);
+            serverInstanceId: result.Session.ServerInstanceId,
+            messageEncoding: result.MessageEncoding);
 
     /// <summary>Creates a failure outcome from an <see cref="EtpConnectionException"/>.</summary>
     public static SampleRunOutcome FromException(EtpConnectionException ex, string endpointHost) =>

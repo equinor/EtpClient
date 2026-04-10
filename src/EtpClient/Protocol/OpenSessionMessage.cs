@@ -19,13 +19,13 @@ internal static class OpenSessionMessage
         var r = new AvroReader(frame);
         var header = EtpMessageHeader.ReadFrom(r);
 
-        // ── applicationName, applicationVersion ───────────────────────────────
+        // ── applicationName, applicationVersion, sessionId ───────────────────
         var appName = r.ReadString();
         var appVersion = r.ReadString();
-
-        // ── serverInstanceId: fixed(16) bytes ─────────────────────────────────
-        var idBytes = r.ReadFixed(16);
-        var serverId = new Guid(idBytes);
+        var sessionId = r.ReadString();
+        var serverId = Guid.TryParse(sessionId, out var parsedSessionId)
+            ? parsedSessionId
+            : Guid.Empty;
 
         // ── supportedProtocols: array of SupportedProtocol ────────────────────
         var protocols = new List<SupportedProtocol>();
@@ -45,40 +45,19 @@ internal static class OpenSessionMessage
             }
         }
 
-        // ── supportedDataObjects: array — skip ────────────────────────────────
+        // ── supportedObjects: array<string> — skip for the minimal client API ─
         while ((blockCount = r.ReadBlockCount()) > 0)
         {
             for (var i = 0; i < blockCount; i++)
-            {
-                r.SkipString();            // qualifiedType
-                r.SkipStringDataValueMap(); // dataObjectCapabilities
-            }
+                r.SkipString();
         }
-
-        // ── supportedCompression: string ──────────────────────────────────────
-        var compression = r.ReadString();
-
-        // ── supportedFormats: array<string> ──────────────────────────────────
-        var formats = new List<string>();
-        while ((blockCount = r.ReadBlockCount()) > 0)
-        {
-            for (var i = 0; i < blockCount; i++)
-                formats.Add(r.ReadString());
-        }
-
-        // ── currentDateTime, earliestReliableTime: long — skip ────────────────
-        r.SkipLong();
-        r.SkipLong();
-
-        // ── endpointCapabilities: map<string, DataValue> — skip ───────────────
-        r.SkipStringDataValueMap();
 
         var session = new NegotiatedSessionInfo
         {
             ServerInstanceId       = serverId,
             SupportedProtocols     = protocols,
-            SupportedCompression   = compression,
-            SupportedFormats       = formats,
+            SupportedCompression   = string.Empty,
+            SupportedFormats       = [],
             ServerApplicationName  = appName,
             ServerApplicationVersion = appVersion,
         };

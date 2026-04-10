@@ -47,5 +47,6 @@ internal static class SampleTestData
             Session = NegotiatedSession(appName, appVersion, instanceId),
             ConnectedAtUtc = DateTimeOffset.UtcNow,
             EndpointHost = endpointHost,
+            MessageEncoding = EtpMessageEncoding.Binary,
         };
 }

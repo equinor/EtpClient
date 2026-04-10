@@ -46,4 +46,10 @@ public sealed class EtpConnectionResult
 
     /// <summary>Endpoint host (without credentials) for diagnostic purposes.</summary>
     public required string EndpointHost { get; init; }
+
+    /// <summary>
+    /// The ETP message encoding used for the session.
+    /// Reflects the caller's <see cref="EtpConnectionOptions.MessageEncoding"/> selection.
+    /// </summary>
+    public required EtpMessageEncoding MessageEncoding { get; init; }
 }

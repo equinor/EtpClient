@@ -13,6 +13,14 @@ public sealed class EtpConnectionOptions
     private static readonly HashSet<string> AllowedSchemes =
         new(StringComparer.OrdinalIgnoreCase) { "ws", "wss" };
 
+    private static readonly IReadOnlyList<SupportedProtocol> DefaultRequestedProtocols =
+    [
+        new SupportedProtocol(
+            Protocol: 1,
+            Version: ProtocolVersion.Etp11,
+            Role: "consumer"),
+    ];
+
     /// <summary>
     /// WebSocket endpoint URI. Must be absolute with scheme <c>ws</c> or <c>wss</c>.
     /// </summary>
@@ -29,7 +37,8 @@ public sealed class EtpConnectionOptions
 
     /// <summary>
     /// Protocol capabilities to advertise in RequestSession.
-    /// Defaults to an empty list (no specific protocol capabilities declared).
+    /// Defaults to the ChannelStreaming protocol in the <c>consumer</c> role,
+    /// which matches the WITSML ETP client profile used by the sample app.
     /// </summary>
     public IReadOnlyList<SupportedProtocol> RequestedProtocols { get; }
 
@@ -38,6 +47,12 @@ public sealed class EtpConnectionOptions
 
     /// <summary>Maximum time allowed for the connection and session handshake.</summary>
     public TimeSpan ConnectionTimeout { get; }
+
+    /// <summary>
+    /// ETP message encoding to use for the session.
+    /// Defaults to <see cref="EtpMessageEncoding.Binary"/> to preserve existing caller behavior.
+    /// </summary>
+    public EtpMessageEncoding MessageEncoding { get; }
 
     /// <summary>
     /// Constructs and validates a new <see cref="EtpConnectionOptions"/> instance.
@@ -50,7 +65,8 @@ public sealed class EtpConnectionOptions
         Guid? clientInstanceId = null,
         IReadOnlyList<SupportedProtocol>? requestedProtocols = null,
         TimeSpan? keepAliveInterval = null,
-        TimeSpan? connectionTimeout = null)
+        TimeSpan? connectionTimeout = null,
+        EtpMessageEncoding messageEncoding = EtpMessageEncoding.Binary)
     {
         if (endpointUri is null)
             throw new ArgumentNullException(nameof(endpointUri));
@@ -70,8 +86,9 @@ public sealed class EtpConnectionOptions
         Username = username;
         Password = password;
         ClientInstanceId = clientInstanceId ?? Guid.NewGuid();
-        RequestedProtocols = requestedProtocols ?? Array.Empty<SupportedProtocol>();
+        RequestedProtocols = requestedProtocols ?? DefaultRequestedProtocols;
         KeepAliveInterval = keepAliveInterval ?? TimeSpan.FromSeconds(30);
         ConnectionTimeout = connectionTimeout ?? TimeSpan.FromSeconds(30);
+        MessageEncoding = messageEncoding;
     }
 }

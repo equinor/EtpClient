@@ -24,6 +24,7 @@ public sealed class SampleOutputWriter
         _out.WriteLine();
         _out.WriteLine("=== ETP Session Established ===");
         _out.WriteLine($"  Endpoint : {outcome.EndpointHost}");
+        _out.WriteLine($"  Encoding : {outcome.MessageEncoding}");
         _out.WriteLine($"  State    : {outcome.FinalState}");
 
         if (showSessionDetails)

@@ -62,7 +62,7 @@ public sealed class ConnectAsyncTests : IDisposable
         Assert.Equal("IntegrationTestServer", result.Session.ServerApplicationName);
         Assert.Equal("1.0.0-test", result.Session.ServerApplicationVersion);
         Assert.NotEqual(Guid.Empty, result.Session.ServerInstanceId);
-        Assert.Contains("xml", result.Session.SupportedFormats);
+        Assert.Empty(result.Session.SupportedFormats);
     }
 
     // ── T024: authentication failure via mock (401 detection is ClientWebSocket-specific) ──
@@ -183,28 +183,17 @@ public sealed class ConnectAsyncTests : IDisposable
     private static ReadOnlyMemory<byte> BuildOpenSessionFrame()
     {
         var w = new AvroWriter();
-        // Header: Int(0=protocol), Int(2=OpenSession), Long(2=messageId), Int(2=FinalPart)
-        w.WriteInt(0); w.WriteInt(2); w.WriteLong(2L); w.WriteInt(2);
+        // Header: protocol=0, messageType=2, correlationId=1, messageId=2, flags=FinalPart
+        w.WriteInt(0); w.WriteInt(2); w.WriteLong(1L); w.WriteLong(2L); w.WriteInt(2);
         // applicationName, applicationVersion
         w.WriteString("IntegrationTestServer");
         w.WriteString("1.0.0-test");
-        // serverInstanceId (16-byte fixed)
-        w.WriteFixed(Guid.NewGuid().ToByteArray());
+        // sessionId (UUID string)
+        w.WriteString(Guid.NewGuid().ToString());
         // supportedProtocols — empty array
         w.WriteArrayStart(0);
-        // supportedDataObjects — empty array
+        // supportedObjects — empty array
         w.WriteArrayStart(0);
-        // supportedCompression — ""
-        w.WriteString("");
-        // supportedFormats — ["xml"]
-        w.WriteArrayStart(1);
-        w.WriteString("xml");
-        w.WriteArrayEnd();
-        // currentDateTime, earliestReliableTime
-        w.WriteLong(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000L);
-        w.WriteLong(0L);
-        // endpointCapabilities — empty map
-        w.WriteMapStart(0);
 
         return w.ToArray();
     }
@@ -256,8 +245,8 @@ public sealed class ConnectAsyncTests : IDisposable
             }
         }
 
-        public ValueTask SendAsync(ReadOnlyMemory<byte> buffer, bool endOfMessage, CancellationToken ct)
-            => _ws!.SendAsync(buffer, WebSocketMessageType.Binary, endOfMessage, ct);
+        public ValueTask SendAsync(ReadOnlyMemory<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken ct)
+            => _ws!.SendAsync(buffer, messageType, endOfMessage, ct);
 
         public ValueTask<ValueWebSocketReceiveResult> ReceiveAsync(Memory<byte> buffer, CancellationToken ct)
             => _ws!.ReceiveAsync(buffer, ct);

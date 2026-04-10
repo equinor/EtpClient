@@ -39,8 +39,8 @@ internal sealed class ClientWebSocketTransport : IWebSocketTransport
         return _ws.ConnectAsync(uri, ct);
     }
 
-    public ValueTask SendAsync(ReadOnlyMemory<byte> buffer, bool endOfMessage, CancellationToken ct)
-        => _ws.SendAsync(buffer, WebSocketMessageType.Binary, endOfMessage, ct);
+    public ValueTask SendAsync(ReadOnlyMemory<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken ct)
+        => _ws.SendAsync(buffer, messageType, endOfMessage, ct);
 
     public ValueTask<ValueWebSocketReceiveResult> ReceiveAsync(Memory<byte> buffer, CancellationToken ct)
         => _ws.ReceiveAsync(buffer, ct);

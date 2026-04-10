@@ -14,6 +14,7 @@ public sealed class Protocol0MessageTests
         var original = new EtpMessageHeader(
             Protocol: 0,
             MessageType: EtpMessageType.RequestSession,
+            CorrelationId: 0L,
             MessageId: 1L,
             MessageFlags: EtpMessageFlags.FinalPart);
 
@@ -26,6 +27,7 @@ public sealed class Protocol0MessageTests
 
         Assert.Equal(original.Protocol, decoded.Protocol);
         Assert.Equal(original.MessageType, decoded.MessageType);
+        Assert.Equal(original.CorrelationId, decoded.CorrelationId);
         Assert.Equal(original.MessageId, decoded.MessageId);
         Assert.Equal(original.MessageFlags, decoded.MessageFlags);
     }
@@ -52,6 +54,7 @@ public sealed class Protocol0MessageTests
         var header = EtpMessageHeader.ReadFrom(reader);
         Assert.Equal(0, header.Protocol);
         Assert.Equal(EtpMessageType.RequestSession, header.MessageType);
+        Assert.Equal(0L, header.CorrelationId);
         Assert.Equal(1L, header.MessageId);
     }
 
@@ -79,15 +82,16 @@ public sealed class Protocol0MessageTests
     public void OpenSession_Decode_ExtractsExpectedFields()
     {
         var serverId = Guid.Parse("AAAABBBB-CCCC-DDDD-EEEE-FFFFFFFFFFFF");
-        var frame = BuildOpenSessionFrame(serverId, "ServerApp", "2.0", "xml");
+        var frame = BuildOpenSessionFrame(serverId, "ServerApp", "2.0");
 
         var (header, session) = OpenSessionMessage.DecodeFrame(frame);
 
         Assert.Equal(EtpMessageType.OpenSession, header.MessageType);
+        Assert.Equal(1L, header.CorrelationId);
         Assert.Equal(serverId, session.ServerInstanceId);
         Assert.Equal("ServerApp", session.ServerApplicationName);
         Assert.Equal("2.0", session.ServerApplicationVersion);
-        Assert.Equal("xml", session.SupportedFormats[0]);
+        Assert.Empty(session.SupportedFormats);
     }
 
     // ── ProtocolException decode ─────────────────────────────────────────────
@@ -100,6 +104,7 @@ public sealed class Protocol0MessageTests
         var (header, code, msg) = ProtocolExceptionMessage.DecodeFrame(frame);
 
         Assert.Equal(EtpMessageType.ProtocolException, header.MessageType);
+        Assert.Equal(1L, header.CorrelationId);
         Assert.Equal(5, code);
         Assert.Equal("Unauthorized", msg);
     }
@@ -107,33 +112,25 @@ public sealed class Protocol0MessageTests
     // ── helpers that build well-formed Avro frames ────────────────────────────
 
     private static ReadOnlyMemory<byte> BuildOpenSessionFrame(
-        Guid serverId, string appName, string appVersion, string format)
+        Guid serverId, string appName, string appVersion)
     {
         var w = new AvroWriter();
-        // Header: protocol=0, messageType=2, messageId=1, messageFlags=2
+        // Header: protocol=0, messageType=2, correlationId=1, messageId=2, messageFlags=2
         w.WriteInt(0);
         w.WriteInt(EtpMessageType.OpenSession);
         w.WriteLong(1L);
+        w.WriteLong(2L);
         w.WriteInt(EtpMessageFlags.FinalPart);
 
         // Body: applicationName, applicationVersion
         w.WriteString(appName);
         w.WriteString(appVersion);
-        // serverInstanceId: 16-byte fixed (UUID)
-        w.WriteFixed(serverId.ToByteArray());
+        // sessionId: UUID string
+        w.WriteString(serverId.ToString());
         // supportedProtocols: empty array
         w.WriteArrayStart(0);
-        // supportedDataObjects: empty array
+        // supportedObjects: empty array
         w.WriteArrayStart(0);
-        // supportedCompression: ""
-        w.WriteString("");
-        // supportedFormats: [format]
-        w.WriteArrayStart(1); w.WriteString(format); w.WriteArrayEnd();
-        // currentDateTime, earliestReliableTime
-        w.WriteLong(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000L);
-        w.WriteLong(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000L);
-        // endpointCapabilities: empty map
-        w.WriteMapStart(0);
 
         return w.ToArray();
     }
@@ -144,6 +141,7 @@ public sealed class Protocol0MessageTests
         w.WriteInt(0);
         w.WriteInt(EtpMessageType.ProtocolException);
         w.WriteLong(1L);
+        w.WriteLong(2L);
         w.WriteInt(EtpMessageFlags.FinalPart);
         // ProtocolException body: errorCode (int), message (string)
         w.WriteInt(errorCode);

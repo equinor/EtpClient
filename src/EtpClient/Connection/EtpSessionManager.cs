@@ -40,6 +40,15 @@ internal sealed class EtpSessionManager
         var host = options.EndpointUri.Host;
         EtpClientLog.Connecting(_logger, host);
 
+        // Select codec based on the caller's encoding choice
+        IEtpSessionCodec codec = options.MessageEncoding switch
+        {
+            EtpMessageEncoding.Json => new JsonEtpSessionCodec(),
+            _ => new BinaryEtpSessionCodec(),
+        };
+
+        EtpClientLog.EncodingSelected(_logger, host, options.MessageEncoding);
+
         try
         {
             // Build Basic auth header — credentials used transiently, not stored
@@ -51,20 +60,20 @@ internal sealed class EtpSessionManager
                 options.KeepAliveInterval,
                 ct).ConfigureAwait(false);
 
-            // Send RequestSession
-            var requestFrame = new RequestSessionMessage(
+            // Send RequestSession using selected codec
+            var requestMessage = new RequestSessionMessage(
                 "EtpClient",
                 "1.0.0",
                 options.ClientInstanceId,
-                options.RequestedProtocols)
-                .EncodeFrame(messageId: 1L);
+                options.RequestedProtocols);
+            var requestFrame = codec.EncodeRequestSession(requestMessage, messageId: 1L);
 
-            await _transport.SendAsync(requestFrame, endOfMessage: true, ct).ConfigureAwait(false);
+            await _transport.SendAsync(requestFrame, codec.FrameType, endOfMessage: true, ct).ConfigureAwait(false);
 
             // Await response
-            var responseFrame = await ReceiveFullFrameAsync(ct).ConfigureAwait(false);
+            var responseFrame = await ReceiveFullFrameAsync(codec.FrameType, ct).ConfigureAwait(false);
 
-            return ProcessResponse(responseFrame, host, options);
+            return ProcessResponse(responseFrame, host, options, codec);
         }
         catch (OperationCanceledException)
         {
@@ -139,26 +148,49 @@ internal sealed class EtpSessionManager
     private EtpConnectionResult ProcessResponse(
         ReadOnlyMemory<byte> frame,
         string host,
-        EtpConnectionOptions options)
+        EtpConnectionOptions options,
+        IEtpSessionCodec codec)
     {
-        var reader = new AvroReader(frame);
-        var header = EtpMessageHeader.ReadFrom(reader);
+        int messageType;
+        try
+        {
+            messageType = codec.PeekMessageType(frame);
+        }
+        catch (Exception ex)
+        {
+            Interlocked.Exchange(ref _state, (int)EtpConnectionState.Failed);
+            EtpClientLog.SessionError(_logger, host, EtpConnectionFailureCategory.Protocol, null);
+            throw new EtpConnectionException(
+                EtpConnectionFailureCategory.Protocol,
+                $"Could not decode server response using {options.MessageEncoding} encoding. " +
+                "The server may use a different encoding.",
+                innerException: ex);
+        }
 
-        switch (header.MessageType)
+        switch (messageType)
         {
             case EtpMessageType.OpenSession:
             {
-                var (_, sessionInfo) = OpenSessionMessage.DecodeFrame(frame);
+                var (_, sessionInfo) = codec.DecodeOpenSession(frame);
                 Interlocked.Exchange(ref _state, (int)EtpConnectionState.Connected);
                 EtpClientLog.SessionEstablished(_logger, sessionInfo.ServerApplicationName, host);
-                return new EtpConnectionResult { Session = sessionInfo, ConnectedAtUtc = DateTimeOffset.UtcNow, EndpointHost = host };
+                return new EtpConnectionResult
+                {
+                    Session = sessionInfo,
+                    ConnectedAtUtc = DateTimeOffset.UtcNow,
+                    EndpointHost = host,
+                    MessageEncoding = options.MessageEncoding,
+                };
             }
             case EtpMessageType.ProtocolException:
             {
-                var (_, errorCode, message) = ProtocolExceptionMessage.DecodeFrame(frame);
-                var ex = new EtpConnectionException(
+                var (_, errorCode, message) = codec.DecodeProtocolException(frame);
+                    var detail = string.IsNullOrWhiteSpace(message)
+                        ? $"ETP error code {errorCode}"
+                        : $"{message} (ETP error code {errorCode})";
+                    var ex = new EtpConnectionException(
                     EtpConnectionFailureCategory.Protocol,
-                    $"Server rejected session: {message}",
+                    $"Server rejected session: {detail}",
                     etpErrorCode: errorCode);
                 Interlocked.Exchange(ref _state, (int)EtpConnectionState.Failed);
                 throw ex;
@@ -167,11 +199,13 @@ internal sealed class EtpSessionManager
                 Interlocked.Exchange(ref _state, (int)EtpConnectionState.Failed);
                 throw new EtpConnectionException(
                     EtpConnectionFailureCategory.Protocol,
-                    $"Unexpected message type {header.MessageType} during handshake.");
+                    $"Unexpected message type {messageType} during handshake.");
         }
     }
 
-    private async ValueTask<ReadOnlyMemory<byte>> ReceiveFullFrameAsync(CancellationToken ct)
+    private async ValueTask<ReadOnlyMemory<byte>> ReceiveFullFrameAsync(
+        System.Net.WebSockets.WebSocketMessageType expectedFrameType,
+        CancellationToken ct)
     {
         var buffer = new byte[ReceiveBufferSize];
         var result = await _transport.ReceiveAsync(buffer, ct).ConfigureAwait(false);
@@ -181,6 +215,16 @@ internal sealed class EtpSessionManager
             throw new EtpConnectionException(
                 EtpConnectionFailureCategory.Transport,
                 "Server closed the WebSocket during handshake.");
+        }
+
+        // Detect encoding mismatch: server responded with a different frame type than selected
+        if (result.MessageType != expectedFrameType)
+        {
+            throw new EtpConnectionException(
+                EtpConnectionFailureCategory.Protocol,
+                $"Server responded with {result.MessageType} frame but client selected " +
+                $"{(expectedFrameType == WebSocketMessageType.Binary ? EtpMessageEncoding.Binary : EtpMessageEncoding.Json)} encoding. " +
+                "The server may not support the selected encoding.");
         }
 
         // For typical ETP messages the full frame fits in one receive

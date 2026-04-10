@@ -23,8 +23,8 @@ Follow-up TODOs:
 
 ### I. Protocol Fidelity First
 All library behavior MUST align with the Enegistics Transfer Protocol v1.1 specification in
-docs/ETP_v1.1_for_WITSML_v1411_Imp_Spec_v1.0_Doc_v1.0.pdf and
-docs/ETP_v1.1_for_WITSML_v1411_Imp_Spec_v1.0_Doc_v1.0.md. Every feature, bug fix, or
+docs/ETP_v1.1_for_WITSML_v1411_Imp_Spec_v1.0_Doc_v1.0.pdf,
+docs/ETP_v1.1_for_WITSML_v1411_Imp_Spec_v1.0_Doc_v1.0.md, docs/ETP_Specification_v1.1_Doc_v1.1.pdf and docs/ETP_Specification_v1.1_Doc_v1.1.md. Every feature, bug fix, or
 behavioral change MUST identify the relevant protocol clauses, message types, and expected
 wire semantics before implementation. The PDF remains the canonical source, and the markdown
 version is an approved working copy for search, citation, and planning. Intentional
