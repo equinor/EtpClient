@@ -108,6 +108,104 @@ public sealed class EtpClient : IAsyncDisposable
         return _manager.CloseAsync(ct);
     }
 
+    /// <summary>
+    /// Requests channel metadata from the producer for one or more ETP URIs
+    /// using Protocol 1 (ChannelStreaming) ChannelDescribe.
+    /// </summary>
+    /// <param name="uris">One or more ETP channel URIs to describe.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// A <see cref="ChannelDescriptionResult"/> containing the channel definitions
+    /// returned by the server plus request metadata.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the session is not in the <see cref="EtpConnectionState.Connected"/> state.
+    /// Call <see cref="ConnectAsync"/> first.
+    /// </exception>
+    /// <exception cref="EtpChannelStreamingException">
+    /// Thrown when the server returns a <c>ProtocolException</c> or an unexpected message
+    /// during the channel describe exchange.
+    /// </exception>
+    public Task<ChannelDescriptionResult> DescribeChannelsAsync(
+        IReadOnlyList<string> uris,
+        CancellationToken ct = default)
+    {
+        if (_manager is null || State != EtpConnectionState.Connected)
+            throw new InvalidOperationException(
+                "DescribeChannels requires an active Connected session.");
+
+        return _manager.DescribeChannelsAsync(uris, ct);
+    }
+
+    /// <summary>
+    /// Starts live Protocol 1 channel streaming for the specified subscriptions.
+    /// Yields <see cref="ChannelEvent"/> instances as the producer sends data, change,
+    /// status, or remove messages. Completes when a <c>ChannelRemove</c> is received
+    /// or the cancellation token fires.
+    /// </summary>
+    /// <param name="subscriptions">Channels to subscribe to with their streaming parameters.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the session is not <see cref="EtpConnectionState.Connected"/>.
+    /// </exception>
+    /// <exception cref="EtpChannelStreamingException">
+    /// Thrown when the server returns a <c>ProtocolException</c> during streaming.
+    /// </exception>
+    public IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(
+        IReadOnlyList<ChannelSubscriptionInfo> subscriptions,
+        CancellationToken ct = default)
+    {
+        if (_manager is null || State != EtpConnectionState.Connected)
+            throw new InvalidOperationException(
+                "StartChannelStreaming requires an active Connected session.");
+
+        return _manager.StartChannelStreamingAsync(subscriptions, ct);
+    }
+
+    /// <summary>
+    /// Sends a <c>ChannelStreamingStop</c> for the specified channel IDs.
+    /// Stopping channels does not close the underlying ETP session.
+    /// </summary>
+    /// <param name="channelIds">Channel IDs to stop.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the session is not <see cref="EtpConnectionState.Connected"/>.
+    /// </exception>
+    public Task StopChannelStreamingAsync(
+        IReadOnlyList<long> channelIds,
+        CancellationToken ct = default)
+    {
+        if (_manager is null || State != EtpConnectionState.Connected)
+            throw new InvalidOperationException(
+                "StopChannelStreaming requires an active Connected session.");
+
+        return _manager.StopChannelStreamingAsync(channelIds, ct);
+    }
+
+    /// <summary>
+    /// Requests historical channel data for a bounded primary-index range using Protocol 1.
+    /// Aggregates multipart <c>ChannelData</c> responses into a single result.
+    /// </summary>
+    /// <param name="request">Range request identifying channels, start index, and end index.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A <see cref="ChannelRangeResult"/> containing all data for the requested range.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the session is not <see cref="EtpConnectionState.Connected"/>.
+    /// </exception>
+    /// <exception cref="EtpChannelStreamingException">
+    /// Thrown when the server returns a <c>ProtocolException</c>.
+    /// </exception>
+    public Task<ChannelRangeResult> RequestChannelRangeAsync(
+        ChannelRangeRequestModel request,
+        CancellationToken ct = default)
+    {
+        if (_manager is null || State != EtpConnectionState.Connected)
+            throw new InvalidOperationException(
+                "RequestChannelRange requires an active Connected session.");
+
+        return _manager.RequestChannelRangeAsync(request, ct);
+    }
+
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {

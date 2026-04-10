@@ -1,6 +1,6 @@
 # etp_test Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-30
+Auto-generated from all feature plans. Last updated: 2026-04-14
 
 ## Active Technologies
 - C# with .NET 10 + `EtpClient` project reference, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.UserSecrets`, `Microsoft.Extensions.Configuration.Binder`, `Microsoft.Extensions.Logging.Console` (002-sample-console-app)
@@ -12,16 +12,19 @@ Auto-generated from all feature plans. Last updated: 2026-05-30
 - C# with .NET 10 + `System.Net.WebSockets.ClientWebSocket`, `System.Text.Json`, `Microsoft.Extensions.Logging.Abstractions`, existing internal Avro reader/writer helpers (004-add-etp-discovery)
 - ETP Protocol 3 (Discovery): `DiscoverResourcesAsync(string uri)` returns `DiscoveryResult` with `Resources`, `WasEmptyAcknowledged`, `State`, `MessageEncoding` (004-add-etp-discovery)
 - `EtpDiscoveryException` carries `RequestedUri` and optional `EtpErrorCode?`; thrown on `ProtocolException` or unexpected message (004-add-etp-discovery)
+- C# with .NET 10 + existing Avro helpers, `System.Runtime.CompilerServices.EnumeratorCancellation` for `IAsyncEnumerable` (005-add-channel-streaming)
+- ETP Protocol 1 (ChannelStreaming): `DescribeChannelsAsync`, `StartChannelStreamingAsync`, `StopChannelStreamingAsync`, `RequestChannelRangeAsync` on `EtpClient` (005-add-channel-streaming)
+- `EtpChannelStreamingException` carries `RequestedTarget` and optional `EtpErrorCode?`; thrown on `ProtocolException` or unexpected message in Protocol 1 operations (005-add-channel-streaming)
 
 ## Project Structure
 
 ```text
 src/
   EtpClient/
-    Models/          # EtpConnectionOptions, EtpConnectionResult, EtpMessageEncoding, DiscoveryModels, ...
+    Models/          # EtpConnectionOptions, EtpConnectionResult, EtpMessageEncoding, DiscoveryModels, ChannelStreamingModels, ...
     Connection/      # EtpSessionManager, IWebSocketTransport, ClientWebSocketTransport
-    Protocol/        # IEtpSessionCodec, BinaryEtpSessionCodec, JsonEtpSessionCodec, GetResourcesMessage, GetResourcesResponseMessage, Avro helpers
-    Diagnostics/     # EtpClientLog (structured log events 1001-1010)
+    Protocol/        # IEtpSessionCodec, BinaryEtpSessionCodec, JsonEtpSessionCodec, GetResourcesMessage, ChannelDescribeMessage, ChannelStreamingStartMessage, ChannelStreamingStopMessage, ChannelRangeRequestMessage, ChannelDataMessage, Avro helpers
+    Diagnostics/     # EtpClientLog (structured log events 1001-1020)
 samples/
   EtpClient.SampleConsole/   # Console sample using EtpClient
 tests/
@@ -31,6 +34,7 @@ tests/
 specs/
   003-support-avro-encoding/ # spec, plan, tasks, contracts, quickstart, research
   004-etp-discovery/         # spec, plan, tasks, contracts, quickstart, research, data-model
+  005-channel-streaming/     # spec, plan, tasks, contracts, quickstart, research, data-model
 ```
 
 ## Commands
@@ -54,7 +58,7 @@ C# with .NET 10: Follow standard conventions
 - `EtpConnectionResult` has required `MessageEncoding` — always set in test factories
 - `FakeLogger` is under `Microsoft.Extensions.Logging.Testing` (not `Microsoft.Extensions.Diagnostics.Testing`)
 - Test files using `TestHost` suppress `CS0618` with `#pragma warning disable/restore CS0618`
-- `EtpClientLog` uses `[LoggerMessage]` source gen; event IDs are sequential (1001–1010)
+- `EtpClientLog` uses `[LoggerMessage]` source gen; event IDs are sequential (1001–1020)
 - Transport `SendAsync` signature: `(ReadOnlyMemory<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken ct)`
 - JSON ETP encoding wire format: `[header_object, body_object]` two-element JSON array over WebSocket text frames
 - Discovery: `EtpClient.DiscoverResourcesAsync(uri)` requires `State == Connected`; throws `InvalidOperationException` otherwise
@@ -63,11 +67,22 @@ C# with .NET 10: Follow standard conventions
 - Discovery: Resource Avro field order (critical for binary codec tests): `uri`, `contentType`, `name`, `channelSubscribable`, `customData`, `resourceType`, `hasChildren`, `uuid` (union[null,string]), `lastChanged`, `objectNotifiable`
 - Discovery: Protocol 3 is negotiated as role `"customer"` in `EtpConnectionOptions.RequestedProtocols` by default
 - Discovery: `EtpClientLog` discovery events 1007–1010: `DiscoverResourcesStarted`, `DiscoverResourcesComplete`, `DiscoverResourcesEmpty`, `DiscoverResourcesFailed`
+- ChannelStreaming: `StartChannelStreamingAsync(IEnumerable<ChannelSubscriptionInfo>, CancellationToken)` returns `IAsyncEnumerable<ChannelEvent>`; requires `[EnumeratorCancellation]` attribute on CT
+- ChannelStreaming: `ChannelSubscriptionInfo(channelId, startLatest, receiveChangeNotifications)` — `startLatest=true` maps to StreamingStartIndex union[0]=null
+- ChannelStreaming: `StopChannelStreamingAsync(IEnumerable<long> channelIds, CancellationToken)` — fire-and-forget stop; session stays Connected
+- ChannelStreaming: `RequestChannelRangeAsync(ChannelRangeRequestModel, CancellationToken)` — aggregates correlated multipart `ChannelData` by `correlationId == messageId`
+- ChannelStreaming: `WasMultipart` on range result is `true` only when a non-final frame was received (i.e., more than 1 frame); a single-frame final-part response gives `WasMultipart=false`
+- ChannelStreaming: `ChannelDataItem.Indexes` is a list of `long`; `ChannelDataItem.Value` is `object?` (null, double, float, int, long, string, bool, byte[])
+- ChannelStreaming: DataValue Avro union indices: `0=null, 1=double, 2=float, 3=int(zigzag), 4=long(zigzag), 5=string, 6=ArrayOfDouble, 7=boolean, 8=bytes`
+- ChannelStreaming: StreamingStartIndex union indices: `0=null/latestValue, 1=int/indexCount, 2=long/indexValue`
+- ChannelStreaming: `EtpClientLog` channel streaming events 1011–1020
+- ChannelStreaming: Protocol 1 message types: `Start=0`, `ChannelDescribe=1`, `ChannelMetadata=2`, `ChannelData=3`, `ChannelStreamingStart=4`, `ChannelStreamingStop=5`, `ChannelDataChange=6`, `ChannelRemove=8`, `ChannelRangeRequest=9`, `ChannelStatusChange=10`
+- ChannelStreaming: `EtpChannelStreamingException` (not `InvalidOperationException`) for `ProtocolException` or unexpected protocol messages in Protocol 1 operations
 
 ## Recent Changes
+- 005-add-channel-streaming: Added full consumer-side Protocol 1 ChannelStreaming: `DescribeChannelsAsync` (multipart ChannelMetadata aggregation), `StartChannelStreamingAsync` (IAsyncEnumerable<ChannelEvent>), `StopChannelStreamingAsync`, `RequestChannelRangeAsync` (correlated multipart ChannelData aggregation), `EtpChannelStreamingException`, Protocol 1 log events 1011-1020, sample app describe/stream/range workflow, `SampleRunOutcome.LiveStreamingResult`/`ChannelRangeResult`
 - 004-add-etp-discovery: Added ETP Protocol 3 Discovery: `DiscoverResourcesAsync(string uri)` on `EtpClient`, multipart `GetResourcesResponse` aggregation, `Acknowledge`-as-empty mapping, `EtpDiscoveryException` for protocol failures, Protocol 3 auto-negotiated in `EtpConnectionOptions`, discovery log events 1007–1010, sample app discovers `eml://` after connect
 - 003-support-avro-encoding: Added configurable binary/JSON ETP message encoding via `EtpMessageEncoding`, `IEtpSessionCodec` abstraction, frame-type mismatch detection, `EtpConnectionResult.MessageEncoding`, `EtpClientLog.EncodingSelected` (event 1006)
-- 002-sample-console-app: Added C# with .NET 10 + `EtpClient` project reference, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.UserSecrets`, `Microsoft.Extensions.Configuration.Binder`, `Microsoft.Extensions.Logging.Console`
 
 
 <!-- MANUAL ADDITIONS START -->

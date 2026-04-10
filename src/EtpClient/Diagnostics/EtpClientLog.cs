@@ -52,4 +52,48 @@ internal static partial class EtpClientLog
         "ETP discovery failed for URI '{DiscoveryUri}' at {EndpointHost}: etpErrorCode={EtpErrorCode}")]
     public static partial void DiscoveryFailed(
         ILogger logger, string endpointHost, string discoveryUri, int? etpErrorCode);
+
+    // ── Protocol 1 (ChannelStreaming) ─────────────────────────────────────────
+
+    [LoggerMessage(1011, LogLevel.Debug,
+        "ETP channel describe requested for '{ChannelTarget}' at {EndpointHost}")]
+    public static partial void DescribeChannelsStarted(ILogger logger, string endpointHost, string channelTarget);
+
+    [LoggerMessage(1012, LogLevel.Debug,
+        "ETP channel describe returned {ChannelCount} channel(s) for '{ChannelTarget}' at {EndpointHost}")]
+    public static partial void DescribeChannelsCompleted(
+        ILogger logger, string endpointHost, string channelTarget, int channelCount);
+
+    [LoggerMessage(1013, LogLevel.Warning,
+        "ETP channel describe failed for '{ChannelTarget}' at {EndpointHost}: etpErrorCode={EtpErrorCode}")]
+    public static partial void DescribeChannelsFailed(
+        ILogger logger, string endpointHost, string channelTarget, int? etpErrorCode);
+
+    [LoggerMessage(1014, LogLevel.Debug,
+        "ETP channel streaming started for {ChannelCount} channel(s) at {EndpointHost}")]
+    public static partial void StreamingStarted(ILogger logger, string endpointHost, int channelCount);
+
+    [LoggerMessage(1015, LogLevel.Debug,
+        "ETP channel streaming stopped for {ChannelCount} channel(s) at {EndpointHost}")]
+    public static partial void StreamingStopped(ILogger logger, string endpointHost, int channelCount);
+
+    [LoggerMessage(1016, LogLevel.Debug,
+        "ETP channel streaming ended at {EndpointHost}: received ChannelRemove for channel {ChannelId}")]
+    public static partial void StreamingChannelRemoved(ILogger logger, string endpointHost, long channelId);
+
+    [LoggerMessage(1017, LogLevel.Warning,
+        "ETP channel streaming failed at {EndpointHost}: etpErrorCode={EtpErrorCode}")]
+    public static partial void StreamingFailed(ILogger logger, string endpointHost, int? etpErrorCode);
+
+    [LoggerMessage(1018, LogLevel.Debug,
+        "ETP channel range request started for {ChannelCount} channel(s) at {EndpointHost}")]
+    public static partial void RangeRequestStarted(ILogger logger, string endpointHost, int channelCount);
+
+    [LoggerMessage(1019, LogLevel.Debug,
+        "ETP channel range request returned {SampleCount} sample(s) for {ChannelCount} channel(s) at {EndpointHost}")]
+    public static partial void RangeRequestCompleted(ILogger logger, string endpointHost, int channelCount, int sampleCount);
+
+    [LoggerMessage(1020, LogLevel.Warning,
+        "ETP channel range request failed at {EndpointHost}: etpErrorCode={EtpErrorCode}")]
+    public static partial void RangeRequestFailed(ILogger logger, string endpointHost, int? etpErrorCode);
 }

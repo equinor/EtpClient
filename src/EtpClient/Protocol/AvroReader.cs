@@ -33,6 +33,28 @@ internal sealed class AvroReader
         return (long)((raw >> 1) ^ (ulong)(-(long)(raw & 1)));
     }
 
+    // ── float / double ────────────────────────────────────────────────────────
+
+    /// <summary>Reads an Avro double (8 bytes, little-endian IEEE 754).</summary>
+    public double ReadDouble()
+    {
+        var bytes = _data.Span.Slice(_pos, 8).ToArray();
+        _pos += 8;
+        if (!BitConverter.IsLittleEndian)
+            Array.Reverse(bytes);
+        return BitConverter.ToDouble(bytes, 0);
+    }
+
+    /// <summary>Reads an Avro float (4 bytes, little-endian IEEE 754).</summary>
+    public float ReadFloat()
+    {
+        var bytes = _data.Span.Slice(_pos, 4).ToArray();
+        _pos += 4;
+        if (!BitConverter.IsLittleEndian)
+            Array.Reverse(bytes);
+        return BitConverter.ToSingle(bytes, 0);
+    }
+
     // ── string ────────────────────────────────────────────────────────────────
 
     /// <summary>Reads an Avro string: reads byte count then UTF-8 bytes.</summary>

@@ -43,4 +43,12 @@ public sealed class NegotiatedSessionInfo
 
     /// <summary>True when the server negotiated Protocol 3 (Discovery) for this session.</summary>
     public bool SupportsDiscovery => SupportedProtocols.Any(protocol => protocol.Protocol == 3);
+
+    /// <summary>
+    /// True when the server negotiated Protocol 1 (ChannelStreaming) in a producer-capable role
+    /// for this session.
+    /// </summary>
+    public bool SupportsChannelStreaming => SupportedProtocols.Any(
+        protocol => protocol.Protocol == 1 &&
+                    string.Equals(protocol.Role, "producer", StringComparison.OrdinalIgnoreCase));
 }

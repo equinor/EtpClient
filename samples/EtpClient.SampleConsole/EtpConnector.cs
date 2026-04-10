@@ -18,6 +18,25 @@ public sealed class EtpConnector : IEtpConnector
         _client.DiscoverResourcesAsync(uri, ct);
 
     /// <inheritdoc/>
+    public Task<ChannelDescriptionResult> DescribeChannelsAsync(
+        IReadOnlyList<string> uris, CancellationToken ct) =>
+        _client.DescribeChannelsAsync(uris, ct);
+
+    /// <inheritdoc/>
+    public IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(
+        IReadOnlyList<ChannelSubscriptionInfo> subscriptions, CancellationToken ct) =>
+        _client.StartChannelStreamingAsync(subscriptions, ct);
+
+    /// <inheritdoc/>
+    public Task StopChannelStreamingAsync(IReadOnlyList<long> channelIds, CancellationToken ct) =>
+        _client.StopChannelStreamingAsync(channelIds, ct);
+
+    /// <inheritdoc/>
+    public Task<ChannelRangeResult> RequestChannelRangeAsync(
+        ChannelRangeRequestModel request, CancellationToken ct) =>
+        _client.RequestChannelRangeAsync(request, ct);
+
+    /// <inheritdoc/>
     public Task CloseAsync(CancellationToken ct) => _client.CloseAsync(ct);
 
     /// <inheritdoc/>

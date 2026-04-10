@@ -232,6 +232,265 @@ internal sealed class EtpSessionManager
         };
     }
 
+    public async Task<ChannelDescriptionResult> DescribeChannelsAsync(
+        IReadOnlyList<string> uris,
+        CancellationToken ct)
+    {
+        if (State != EtpConnectionState.Connected || _codec is null)
+            throw new InvalidOperationException("DescribeChannels requires an active Connected session.");
+
+        var codec = _codec;
+        var host = _host;
+        var messageId = Interlocked.Increment(ref _nextMessageId);
+        var target = string.Join(", ", uris);
+        EtpClientLog.DescribeChannelsStarted(_logger, host, target);
+
+        var requestFrame = codec.EncodeChannelDescribe(uris, messageId);
+        await _transport.SendAsync(requestFrame, codec.FrameType, endOfMessage: true, ct).ConfigureAwait(false);
+
+        var channels = new List<ChannelDefinition>();
+        var wasMultipart = false;
+        var initialChannelCount = 0;
+
+        while (true)
+        {
+            var responseFrame = await ReceiveFullFrameAsync(codec.FrameType, ct).ConfigureAwait(false);
+            var header = codec.DecodeHeader(responseFrame);
+
+            // Ignore messages correlated to other outstanding requests
+            if (header.CorrelationId != messageId)
+                continue;
+
+            if (header.Protocol == EtpProtocol.ChannelStreaming &&
+                header.MessageType == EtpChannelStreamingMessageType.ChannelMetadata)
+            {
+                var (_, channelsBatch) = codec.DecodeChannelMetadata(responseFrame);
+                channels.AddRange(channelsBatch);
+                if (channels.Count > initialChannelCount)
+                    wasMultipart = true;
+                if ((header.MessageFlags & EtpMessageFlags.FinalPart) != 0)
+                    break;
+                initialChannelCount = channels.Count;
+            }
+            else if (header.MessageType == EtpMessageType.ProtocolException)
+            {
+                var (_, errorCode, message) = codec.DecodeProtocolException(responseFrame);
+                var detail = string.IsNullOrWhiteSpace(message)
+                    ? $"ETP error code {errorCode}"
+                    : $"{message} (ETP error code {errorCode})";
+                EtpClientLog.DescribeChannelsFailed(_logger, host, target, errorCode);
+                throw new EtpChannelStreamingException(
+                    $"ChannelDescribe failed for '{target}': {detail}", target, errorCode);
+            }
+            else
+            {
+                throw new EtpChannelStreamingException(
+                    $"Unexpected message (protocol={header.Protocol}, type={header.MessageType}) during ChannelDescribe for '{target}'.",
+                    target,
+                    etpErrorCode: null);
+            }
+        }
+
+        EtpClientLog.DescribeChannelsCompleted(_logger, host, target, channels.Count);
+
+        return new ChannelDescriptionResult
+        {
+            RequestedUris = uris,
+            Channels = channels,
+            MessageEncoding = codec.Encoding,
+            WasMultipart = wasMultipart,
+            State = ChannelDescriptionState.Completed,
+        };
+    }
+
+    /// <summary>
+    /// Starts live Protocol 1 channel streaming and yields <see cref="ChannelEvent"/> instances
+    /// as the producer sends data, change, status, or remove messages.
+    /// The enumeration completes when a <c>ChannelRemove</c> is received or the cancellation
+    /// token is fired. <c>ProtocolException</c> causes an <see cref="EtpChannelStreamingException"/>.
+    /// </summary>
+    public async IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(
+        IReadOnlyList<ChannelSubscriptionInfo> subscriptions,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        if (State != EtpConnectionState.Connected || _codec is null)
+            throw new InvalidOperationException("StartChannelStreaming requires an active Connected session.");
+
+        var codec = _codec;
+        var host = _host;
+        var messageId = Interlocked.Increment(ref _nextMessageId);
+        EtpClientLog.StreamingStarted(_logger, host, subscriptions.Count);
+
+        var requestFrame = codec.EncodeChannelStreamingStart(subscriptions, messageId);
+        await _transport.SendAsync(requestFrame, codec.FrameType, endOfMessage: true, ct).ConfigureAwait(false);
+
+        while (!ct.IsCancellationRequested)
+        {
+            ReadOnlyMemory<byte> responseFrame;
+            try
+            {
+                responseFrame = await ReceiveFullFrameAsync(codec.FrameType, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                yield break;
+            }
+
+            var header = codec.DecodeHeader(responseFrame);
+
+            if (header.Protocol == EtpProtocol.ChannelStreaming &&
+                header.MessageType == EtpChannelStreamingMessageType.ChannelData)
+            {
+                var (_, items) = codec.DecodeChannelData(responseFrame);
+                yield return new ChannelEvent
+                {
+                    Kind = ChannelEventKind.Data,
+                    DataItems = items,
+                };
+            }
+            else if (header.Protocol == EtpProtocol.ChannelStreaming &&
+                     header.MessageType == EtpChannelStreamingMessageType.ChannelDataChange)
+            {
+                var (_, chanId, startIdx, endIdx) = codec.DecodeChannelDataChange(responseFrame);
+                yield return new ChannelEvent
+                {
+                    Kind = ChannelEventKind.DataChange,
+                    ChannelId = chanId,
+                    StartIndex = startIdx,
+                    EndIndex = endIdx,
+                };
+            }
+            else if (header.Protocol == EtpProtocol.ChannelStreaming &&
+                     header.MessageType == EtpChannelStreamingMessageType.ChannelStatusChange)
+            {
+                var (_, chanId, newStatus) = codec.DecodeChannelStatusChange(responseFrame);
+                yield return new ChannelEvent
+                {
+                    Kind = ChannelEventKind.StatusChange,
+                    ChannelId = chanId,
+                    NewStatus = newStatus,
+                };
+            }
+            else if (header.Protocol == EtpProtocol.ChannelStreaming &&
+                     header.MessageType == EtpChannelStreamingMessageType.ChannelRemove)
+            {
+                var (_, chanId, reason) = codec.DecodeChannelRemove(responseFrame);
+                EtpClientLog.StreamingChannelRemoved(_logger, host, chanId);
+                yield return new ChannelEvent
+                {
+                    Kind = ChannelEventKind.Remove,
+                    ChannelId = chanId,
+                    RemoveReason = reason,
+                };
+                yield break; // producer signalled channel end
+            }
+            else if (header.MessageType == EtpMessageType.ProtocolException)
+            {
+                var (_, errorCode, message) = codec.DecodeProtocolException(responseFrame);
+                var detail = string.IsNullOrWhiteSpace(message)
+                    ? $"ETP error code {errorCode}"
+                    : $"{message} (ETP error code {errorCode})";
+                EtpClientLog.StreamingFailed(_logger, host, errorCode);
+                throw new EtpChannelStreamingException(
+                    $"ChannelStreaming failed: {detail}", "(live stream)", errorCode);
+            }
+            // Other frame types (e.g. unrelated protocol messages) are ignored
+        }
+    }
+
+    /// <summary>
+    /// Sends <c>ChannelStreamingStop</c> for the specified channel IDs.
+    /// Does not close the session; the session remains <see cref="EtpConnectionState.Connected"/>.
+    /// </summary>
+    public async Task StopChannelStreamingAsync(
+        IReadOnlyList<long> channelIds,
+        CancellationToken ct)
+    {
+        if (State != EtpConnectionState.Connected || _codec is null)
+            throw new InvalidOperationException("StopChannelStreaming requires an active Connected session.");
+
+        var codec = _codec;
+        var messageId = Interlocked.Increment(ref _nextMessageId);
+        var frame = codec.EncodeChannelStreamingStop(channelIds, messageId);
+        await _transport.SendAsync(frame, codec.FrameType, endOfMessage: true, ct).ConfigureAwait(false);
+        EtpClientLog.StreamingStopped(_logger, _host, channelIds.Count);
+    }
+
+    /// <summary>
+    /// Sends a <c>ChannelRangeRequest</c> and aggregates all correlated <c>ChannelData</c>
+    /// response parts into a single <see cref="ChannelRangeResult"/>.
+    /// </summary>
+    public async Task<ChannelRangeResult> RequestChannelRangeAsync(
+        ChannelRangeRequestModel request,
+        CancellationToken ct)
+    {
+        if (State != EtpConnectionState.Connected || _codec is null)
+            throw new InvalidOperationException("RequestChannelRange requires an active Connected session.");
+
+        var codec = _codec;
+        var host = _host;
+        var messageId = Interlocked.Increment(ref _nextMessageId);
+        EtpClientLog.RangeRequestStarted(_logger, host, request.ChannelIds.Count);
+
+        var ranges = new[]
+        {
+            new ChannelRangeInfoWire(request.ChannelIds, request.FromIndex, request.ToIndex),
+        };
+        var requestFrame = codec.EncodeChannelRangeRequest(ranges, messageId);
+        await _transport.SendAsync(requestFrame, codec.FrameType, endOfMessage: true, ct).ConfigureAwait(false);
+
+        var samples = new List<ChannelDataItem>();
+        var wasMultipart = false;
+
+        while (true)
+        {
+            var responseFrame = await ReceiveFullFrameAsync(codec.FrameType, ct).ConfigureAwait(false);
+            var header = codec.DecodeHeader(responseFrame);
+
+            // Ignore messages not correlated to this request
+            if (header.CorrelationId != messageId)
+                continue;
+
+            if (header.Protocol == EtpProtocol.ChannelStreaming &&
+                header.MessageType == EtpChannelStreamingMessageType.ChannelData)
+            {
+                var (_, items) = codec.DecodeChannelData(responseFrame);
+                samples.AddRange(items);
+                if ((header.MessageFlags & EtpMessageFlags.FinalPart) != 0)
+                    break;
+                // More parts are coming — mark as multipart
+                wasMultipart = true;
+            }
+            else if (header.MessageType == EtpMessageType.ProtocolException)
+            {
+                var (_, errorCode, message) = codec.DecodeProtocolException(responseFrame);
+                var detail = string.IsNullOrWhiteSpace(message)
+                    ? $"ETP error code {errorCode}"
+                    : $"{message} (ETP error code {errorCode})";
+                EtpClientLog.RangeRequestFailed(_logger, host, errorCode);
+                throw new EtpChannelStreamingException(
+                    $"ChannelRangeRequest failed: {detail}", "(range request)", errorCode);
+            }
+            else
+            {
+                throw new EtpChannelStreamingException(
+                    $"Unexpected message (protocol={header.Protocol}, type={header.MessageType}) during ChannelRangeRequest.",
+                    "(range request)",
+                    etpErrorCode: null);
+            }
+        }
+
+        EtpClientLog.RangeRequestCompleted(_logger, host, request.ChannelIds.Count, samples.Count);
+
+        return new ChannelRangeResult
+        {
+            Request = request,
+            Samples = samples,
+            WasMultipart = wasMultipart,
+            State = ChannelRangeResultState.Completed,
+        };
+    }
+
     // ── private helpers ───────────────────────────────────────────────────────
 
     private EtpConnectionResult ProcessResponse(

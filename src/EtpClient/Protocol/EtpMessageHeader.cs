@@ -4,7 +4,42 @@ namespace EtpClient.Protocol;
 internal static class EtpProtocol
 {
     public const int Core = 0;
+    public const int ChannelStreaming = 1;
     public const int Discovery = 3;
+}
+
+/// <summary>ETP Protocol 1 (ChannelStreaming) message type constants.</summary>
+internal static class EtpChannelStreamingMessageType
+{
+    /// <summary>Start — consumer → producer. Signals channel streaming session start.</summary>
+    public const int Start = 0;
+
+    /// <summary>ChannelDescribe — consumer → producer. Requests metadata for channel URIs.</summary>
+    public const int ChannelDescribe = 1;
+
+    /// <summary>ChannelMetadata — producer → consumer. Returns channel definitions (multipart).</summary>
+    public const int ChannelMetadata = 2;
+
+    /// <summary>ChannelData — producer → consumer. Live or range data values.</summary>
+    public const int ChannelData = 3;
+
+    /// <summary>ChannelStreamingStart — consumer → producer. Subscribes to live channel data.</summary>
+    public const int ChannelStreamingStart = 4;
+
+    /// <summary>ChannelStreamingStop — consumer → producer. Cancels live subscriptions.</summary>
+    public const int ChannelStreamingStop = 5;
+
+    /// <summary>ChannelDataChange — producer → consumer. Notifies of historic data edits.</summary>
+    public const int ChannelDataChange = 6;
+
+    /// <summary>ChannelRemove — producer → consumer. Signals a channel is being removed.</summary>
+    public const int ChannelRemove = 8;
+
+    /// <summary>ChannelRangeRequest — consumer → producer. Requests historic data range.</summary>
+    public const int ChannelRangeRequest = 9;
+
+    /// <summary>ChannelStatusChange — producer → consumer. Notifies of channel status change.</summary>
+    public const int ChannelStatusChange = 10;
 }
 
 /// <summary>ETP Protocol 3 (Discovery) message type constants.</summary>

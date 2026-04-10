@@ -75,6 +75,26 @@ internal sealed class AvroWriter
     /// <summary>Writes the terminating block of an Avro map (0 count).</summary>
     public void WriteMapEnd() => WriteLong(0L);
 
+    // ── float / double ────────────────────────────────────────────────────────────────
+
+    /// <summary>Writes an Avro double (8 bytes, little-endian IEEE 754).</summary>
+    public void WriteDouble(double value)
+    {
+        var bytes = BitConverter.GetBytes(value);
+        if (!BitConverter.IsLittleEndian)
+            Array.Reverse(bytes);
+        _buf.AddRange(bytes);
+    }
+
+    /// <summary>Writes an Avro float (4 bytes, little-endian IEEE 754).</summary>
+    public void WriteFloat(float value)
+    {
+        var bytes = BitConverter.GetBytes(value);
+        if (!BitConverter.IsLittleEndian)
+            Array.Reverse(bytes);
+        _buf.AddRange(bytes);
+    }
+
     // ── output ────────────────────────────────────────────────────────────────
 
     /// <summary>Returns the encoded bytes as a <see cref="ReadOnlyMemory{T}"/>.</summary>

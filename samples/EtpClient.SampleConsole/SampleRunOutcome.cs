@@ -2,6 +2,21 @@ using EtpClient.Models;
 
 namespace EtpClient.SampleConsole;
 
+/// <summary>
+/// Summarizes the outcome of a live channel streaming session.
+/// </summary>
+public sealed class LiveStreamingResult
+{
+    /// <summary>Channel IDs that were subscribed to.</summary>
+    public required IReadOnlyList<long> SubscribedChannelIds { get; init; }
+
+    /// <summary>Total number of <c>ChannelData</c> events received.</summary>
+    public required int EventsReceived { get; init; }
+
+    /// <summary>Whether streaming ended via a <c>ChannelRemove</c> event.</summary>
+    public required bool EndedByRemove { get; init; }
+}
+
 /// <summary>Process exit codes for the sample application.</summary>
 public static class SampleExitCode
 {
@@ -73,6 +88,15 @@ public sealed class SampleRunOutcome
     /// <summary>Discovery result from the post-connect resource traversal. Null on failure or if discovery was skipped.</summary>
     public DiscoveryResult? DiscoveryResult { get; }
 
+    /// <summary>Channel description result from the post-connect channel metadata request. Null if not requested or on failure.</summary>
+    public ChannelDescriptionResult? ChannelDescriptionResult { get; }
+
+    /// <summary>Live streaming result from the post-describe streaming session. Null if not requested or on failure.</summary>
+    public LiveStreamingResult? LiveStreamingResult { get; }
+
+    /// <summary>Range request result from the post-describe bounded range query. Null if not requested or on failure.</summary>
+    public ChannelRangeResult? ChannelRangeResult { get; }
+
     private SampleRunOutcome(
         bool succeeded,
         EtpConnectionState finalState,
@@ -84,7 +108,10 @@ public sealed class SampleRunOutcome
         Guid? serverInstanceId,
         IReadOnlyList<SupportedProtocol>? supportedProtocols,
         EtpMessageEncoding? messageEncoding = null,
-        DiscoveryResult? discoveryResult = null)
+        DiscoveryResult? discoveryResult = null,
+        ChannelDescriptionResult? channelDescriptionResult = null,
+        LiveStreamingResult? liveStreamingResult = null,
+        ChannelRangeResult? channelRangeResult = null)
     {
         Succeeded = succeeded;
         FinalState = finalState;
@@ -97,12 +124,18 @@ public sealed class SampleRunOutcome
         SupportedProtocols = supportedProtocols ?? Array.Empty<SupportedProtocol>();
         MessageEncoding = messageEncoding;
         DiscoveryResult = discoveryResult;
+        ChannelDescriptionResult = channelDescriptionResult;
+        LiveStreamingResult = liveStreamingResult;
+        ChannelRangeResult = channelRangeResult;
     }
 
     /// <summary>Creates a success outcome from a completed connection result and optional discovery.</summary>
     public static SampleRunOutcome FromSuccess(
         EtpConnectionResult result,
-        DiscoveryResult? discoveryResult = null) =>
+        DiscoveryResult? discoveryResult = null,
+        ChannelDescriptionResult? channelDescriptionResult = null,
+        LiveStreamingResult? liveStreamingResult = null,
+        ChannelRangeResult? channelRangeResult = null) =>
         new(
             succeeded: true,
             finalState: EtpConnectionState.Connected,
@@ -114,7 +147,10 @@ public sealed class SampleRunOutcome
             serverInstanceId: result.Session.ServerInstanceId,
             supportedProtocols: result.Session.SupportedProtocols,
             messageEncoding: result.MessageEncoding,
-            discoveryResult: discoveryResult);
+            discoveryResult: discoveryResult,
+            channelDescriptionResult: channelDescriptionResult,
+            liveStreamingResult: liveStreamingResult,
+            channelRangeResult: channelRangeResult);
 
     /// <summary>Creates a failure outcome from an <see cref="EtpConnectionException"/>.</summary>
     public static SampleRunOutcome FromException(EtpConnectionException ex, string endpointHost) =>

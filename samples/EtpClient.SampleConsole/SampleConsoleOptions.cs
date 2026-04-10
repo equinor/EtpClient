@@ -30,6 +30,34 @@ public sealed class SampleConsoleOptions
     public EtpMessageEncoding MessageEncoding { get; set; } = EtpMessageEncoding.Binary;
 
     /// <summary>
+    /// Optional channel URI. When set, the sample runner performs a ChannelDescribe
+    /// after connecting and outputs the discovered channel definitions.
+    /// Example: <c>"eml:///witsml20.Well(12345678)"</c>
+    /// </summary>
+    public string? ChannelUri { get; set; }
+
+    /// <summary>
+    /// Optional start index for a bounded channel range request.
+    /// When both <see cref="ChannelRangeFromIndex"/> and <see cref="ChannelRangeToIndex"/> are set
+    /// and channels were described, the sample runner issues a <c>ChannelRangeRequest</c>.
+    /// </summary>
+    public long? ChannelRangeFromIndex { get; set; }
+
+    /// <summary>
+    /// Optional end index for a bounded channel range request.
+    /// When both <see cref="ChannelRangeFromIndex"/> and <see cref="ChannelRangeToIndex"/> are set
+    /// and channels were described, the sample runner issues a <c>ChannelRangeRequest</c>.
+    /// </summary>
+    public long? ChannelRangeToIndex { get; set; }
+
+    /// <summary>
+    /// Maximum number of seconds the sample waits for bounded Protocol 1 request/response
+    /// operations such as <c>ChannelDescribe</c> and <c>ChannelRangeRequest</c>.
+    /// This does not apply to live streaming.
+    /// </summary>
+    public int ProtocolRequestTimeoutSeconds { get; set; } = 10;
+
+    /// <summary>
     /// Validates that all required fields are present and well-formed.
     /// Returns <see langword="null"/> on success, or a secret-safe message describing what is missing or invalid.
     /// </summary>
@@ -50,6 +78,9 @@ public sealed class SampleConsoleOptions
 
         if (string.IsNullOrWhiteSpace(Password))
             return "Etp:Password is required. Set it via: dotnet user-secrets set \"Etp:Password\" \"your-password\"";
+
+        if (ProtocolRequestTimeoutSeconds <= 0)
+            return "Etp:ProtocolRequestTimeoutSeconds must be greater than 0.";
 
         return null;
     }

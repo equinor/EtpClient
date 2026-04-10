@@ -67,6 +67,8 @@ public sealed class SampleConsoleRunner
             var result = await connector.ConnectAsync(connectionOptions, ct).ConfigureAwait(false);
 
             DiscoveryResult? discoveryResult = null;
+            ChannelDescriptionResult? channelDescriptionResult = null;
+
             if (result.Session.SupportsDiscovery)
             {
                 _logger.LogInformation("Discovering resources at eml://...");
@@ -84,10 +86,103 @@ public sealed class SampleConsoleRunner
                 _logger.LogInformation("Skipping discovery because the server did not negotiate Protocol 3 (Discovery).");
             }
 
-            var successOutcome = SampleRunOutcome.FromSuccess(result, discoveryResult);
+            if (!string.IsNullOrWhiteSpace(_options.ChannelUri) && !result.Session.SupportsChannelStreaming)
+            {
+                _logger.LogInformation(
+                    "Skipping channel describe because the server did not negotiate Protocol 1 (ChannelStreaming).");
+            }
+            else if (!string.IsNullOrWhiteSpace(_options.ChannelUri))
+            {
+                _logger.LogInformation("Describing channels for {ChannelUri}...", _options.ChannelUri);
+                using var describeCts = CreateProtocolRequestCancellationTokenSource(ct);
+                try
+                {
+                    channelDescriptionResult = await connector.DescribeChannelsAsync(
+                        [_options.ChannelUri], describeCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    _logger.LogWarning(
+                        "Channel describe timed out after {TimeoutSeconds} second(s). The server may not support Protocol 1 for this URI or did not respond.",
+                        _options.ProtocolRequestTimeoutSeconds);
+                }
+                catch (EtpChannelStreamingException ex)
+                {
+                    _logger.LogWarning("Channel describe failed: {Message}", ex.Message);
+                }
+            }
+
+            LiveStreamingResult? liveStreamingResult = null;
+            if (channelDescriptionResult is { Channels.Count: > 0 })
+            {
+                var subscriptions = channelDescriptionResult.Channels
+                    .Select(ch => new ChannelSubscriptionInfo(ch.ChannelId, startLatest: true, receiveChangeNotifications: false))
+                    .ToList();
+                _logger.LogInformation("Starting live channel streaming for {Count} channel(s)...", subscriptions.Count);
+                try
+                {
+                    var eventsReceived = 0;
+                    var endedByRemove = false;
+                    await foreach (var ev in connector.StartChannelStreamingAsync(subscriptions, ct).ConfigureAwait(false))
+                    {
+                        eventsReceived++;
+                        if (ev.Kind == ChannelEventKind.Remove)
+                        {
+                            endedByRemove = true;
+                            break;
+                        }
+                    }
+                    liveStreamingResult = new LiveStreamingResult
+                    {
+                        SubscribedChannelIds = subscriptions.Select(s => s.ChannelId).ToList(),
+                        EventsReceived = eventsReceived,
+                        EndedByRemove = endedByRemove,
+                    };
+                    _logger.LogInformation("Streaming ended: {EventsReceived} event(s) received.", eventsReceived);
+                }
+                catch (EtpChannelStreamingException ex)
+                {
+                    _logger.LogWarning("Live streaming failed: {Message}", ex.Message);
+                }
+            }
+
+            ChannelRangeResult? channelRangeResult = null;
+            if (channelDescriptionResult is { Channels.Count: > 0 }
+                && _options.ChannelRangeFromIndex.HasValue
+                && _options.ChannelRangeToIndex.HasValue)
+            {
+                var rangeRequest = new ChannelRangeRequestModel
+                {
+                    ChannelIds = channelDescriptionResult.Channels.Select(ch => ch.ChannelId).ToList(),
+                    FromIndex = _options.ChannelRangeFromIndex.Value,
+                    ToIndex = _options.ChannelRangeToIndex.Value,
+                };
+                _logger.LogInformation("Requesting channel range [{From}, {To}]...",
+                    _options.ChannelRangeFromIndex.Value, _options.ChannelRangeToIndex.Value);
+                using var rangeCts = CreateProtocolRequestCancellationTokenSource(ct);
+                try
+                {
+                    channelRangeResult = await connector.RequestChannelRangeAsync(rangeRequest, rangeCts.Token).ConfigureAwait(false);
+                    _logger.LogInformation("Range request returned {Count} sample(s).", channelRangeResult.Samples.Count);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    _logger.LogWarning(
+                        "Channel range request timed out after {TimeoutSeconds} second(s).",
+                        _options.ProtocolRequestTimeoutSeconds);
+                }
+                catch (EtpChannelStreamingException ex)
+                {
+                    _logger.LogWarning("Range request failed: {Message}", ex.Message);
+                }
+            }
+
+            var successOutcome = SampleRunOutcome.FromSuccess(result, discoveryResult, channelDescriptionResult, liveStreamingResult, channelRangeResult);
             _outputWriter.WriteSuccess(successOutcome, _options.ShowSessionDetails);
             _outputWriter.WriteDiscovery(successOutcome);
-
+            _outputWriter.WriteChannelDescription(successOutcome);
+            _outputWriter.WriteLiveStreaming(successOutcome);
+            _outputWriter.WriteChannelRange(successOutcome);
             _logger.LogInformation("Closing session...");
             await connector.CloseAsync(ct).ConfigureAwait(false);
 
@@ -109,5 +204,12 @@ public sealed class SampleConsoleRunner
             _outputWriter.WriteFailure(canceledOutcome);
             return canceledOutcome;
         }
+    }
+
+    private CancellationTokenSource CreateProtocolRequestCancellationTokenSource(CancellationToken ct)
+    {
+        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        linkedCts.CancelAfter(TimeSpan.FromSeconds(_options.ProtocolRequestTimeoutSeconds));
+        return linkedCts;
     }
 }

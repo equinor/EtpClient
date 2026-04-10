@@ -83,6 +83,18 @@ public sealed class SampleConsoleOptionsValidationTests
     }
 
     [Fact]
+    public void Validate_NonPositiveProtocolRequestTimeout_ReturnsError()
+    {
+        var options = SampleTestData.ValidOptions();
+        options.ProtocolRequestTimeoutSeconds = 0;
+
+        var error = options.Validate();
+
+        Assert.NotNull(error);
+        Assert.Contains("ProtocolRequestTimeoutSeconds", error);
+    }
+
+    [Fact]
     public void Validate_MissingUri_MessageContainsDotnetUserSecretsHint()
     {
         var options = SampleTestData.ValidOptions(endpointUri: null!);

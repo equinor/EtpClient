@@ -87,4 +87,69 @@ public sealed class SampleOutputWriter
         _out.WriteLine("=========================");
         _out.WriteLine();
     }
+
+    /// <summary>Writes a channel description result summary to stdout.</summary>
+    public void WriteChannelDescription(SampleRunOutcome outcome)
+    {
+        var description = outcome.ChannelDescriptionResult;
+        if (description is null)
+            return;
+
+        _out.WriteLine();
+        _out.WriteLine("=== Channel Description ===");
+        _out.WriteLine($"  URIs     : {string.Join(", ", description.RequestedUris)}");
+        _out.WriteLine($"  Encoding : {description.MessageEncoding}");
+
+        if (description.Channels.Count == 0)
+        {
+            _out.WriteLine("  (no channels found)");
+        }
+        else
+        {
+            foreach (var channel in description.Channels)
+            {
+                _out.WriteLine($"  [{channel.ChannelId}] {channel.ChannelName}  ({channel.DataType}) {channel.Uom}");
+                _out.WriteLine($"    Uri   : {channel.ChannelUri}");
+                _out.WriteLine($"    Index : {channel.IndexType} [{channel.IndexUom}] {channel.IndexDirection}");
+                _out.WriteLine($"    Status: {channel.Status}");
+            }
+        }
+
+        _out.WriteLine("===========================");
+        _out.WriteLine();
+    }
+
+    /// <summary>Writes a live streaming result summary to stdout.</summary>
+    public void WriteLiveStreaming(SampleRunOutcome outcome)
+    {
+        var streaming = outcome.LiveStreamingResult;
+        if (streaming is null)
+            return;
+
+        _out.WriteLine();
+        _out.WriteLine("=== Live Streaming Result ===");
+        _out.WriteLine($"  Channels : {string.Join(", ", streaming.SubscribedChannelIds)}");
+        _out.WriteLine($"  Events   : {streaming.EventsReceived}");
+        _out.WriteLine($"  Ended by : {(streaming.EndedByRemove ? "ChannelRemove" : "cancellation")}");
+        _out.WriteLine("=============================");
+        _out.WriteLine();
+    }
+
+    /// <summary>Writes a channel range result summary to stdout.</summary>
+    public void WriteChannelRange(SampleRunOutcome outcome)
+    {
+        var range = outcome.ChannelRangeResult;
+        if (range is null)
+            return;
+
+        _out.WriteLine();
+        _out.WriteLine("=== Channel Range Result ===");
+        _out.WriteLine($"  Channels : {string.Join(", ", range.Request.ChannelIds)}");
+        _out.WriteLine($"  Range    : {range.Request.FromIndex} - {range.Request.ToIndex}");
+        _out.WriteLine($"  Samples  : {range.Samples.Count}");
+        _out.WriteLine($"  Multipart: {range.WasMultipart}");
+        _out.WriteLine($"  State    : {range.State}");
+        _out.WriteLine("============================");
+        _out.WriteLine();
+    }
 }
