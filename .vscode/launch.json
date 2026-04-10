@@ -1,0 +1,38 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "EtpClient.SampleConsole",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-sample-console",
+            "program": "${workspaceFolder}/samples/EtpClient.SampleConsole/bin/Debug/net10.0/EtpClient.SampleConsole.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/samples/EtpClient.SampleConsole",
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Live Integration Tests",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-integration-tests",
+            "program": "${workspaceFolder}/tests/EtpClient.IntegrationTests/bin/Debug/net10.0/EtpClient.IntegrationTests.dll",
+            "args": [
+                "--filter", "FullyQualifiedName~LiveConnectAsync"
+            ],
+            "cwd": "${workspaceFolder}/tests/EtpClient.IntegrationTests",
+            "env": {
+                "ETP_LIVE_URI": "",
+                "ETP_LIVE_USERNAME": "",
+                "ETP_LIVE_PASSWORD": ""
+            },
+            "console": "integratedTerminal"
+        }
+    ]
+}

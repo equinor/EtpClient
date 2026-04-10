@@ -1,9 +1,13 @@
 <Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/EtpClient.SampleConsole/EtpClient.SampleConsole.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/EtpClient/EtpClient.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/EtpClient.IntegrationTests/EtpClient.IntegrationTests.csproj" />
+    <Project Path="tests/EtpClient.SampleConsole.Tests/EtpClient.SampleConsole.Tests.csproj" />
     <Project Path="tests/EtpClient.UnitTests/EtpClient.UnitTests.csproj" />
   </Folder>
 </Solution>

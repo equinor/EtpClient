@@ -8,7 +8,8 @@ namespace EtpClient.Connection;
 /// </summary>
 internal sealed class ClientWebSocketTransport : IWebSocketTransport
 {
-    private const string EtpSubProtocol = "etp12.energistics.org";
+    // private const string EtpSubProtocol = "etp12.energistics.org";
+    private const string EtpSubProtocol = "energistics-tp";
 
     private readonly ClientWebSocket _ws = new();
 
