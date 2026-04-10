@@ -85,8 +85,8 @@ public sealed class Protocol0MessageTests
             clientInstanceId: Guid.NewGuid(),
             requestedProtocols:
             [
-                new SupportedProtocol(1, ProtocolVersion.Etp11, "consumer"),
-                new SupportedProtocol(3, ProtocolVersion.Etp11, "customer"),
+                new SupportedProtocol(1, ProtocolVersion.Etp11, "producer"),
+                new SupportedProtocol(3, ProtocolVersion.Etp11, "store"),
             ]);
 
         var bytes = msg.EncodeFrame(messageId: 1L);
@@ -118,12 +118,12 @@ public sealed class Protocol0MessageTests
             p =>
             {
                 Assert.Equal(1, p.Protocol);
-                Assert.Equal("consumer", p.Role);
+                Assert.Equal("producer", p.Role);
             },
             p =>
             {
                 Assert.Equal(3, p.Protocol);
-                Assert.Equal("customer", p.Role);
+                Assert.Equal("store", p.Role);
             });
 
         Assert.Equal(0, reader.ReadBlockCount());

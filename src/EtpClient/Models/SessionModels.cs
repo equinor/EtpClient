@@ -41,8 +41,13 @@ public sealed class NegotiatedSessionInfo
     /// <summary>Server application version reported in OpenSession.</summary>
     public required string ServerApplicationVersion { get; init; }
 
-    /// <summary>True when the server negotiated Protocol 3 (Discovery) for this session.</summary>
-    public bool SupportsDiscovery => SupportedProtocols.Any(protocol => protocol.Protocol == 3);
+    /// <summary>
+    /// True when the server negotiated Protocol 3 (Discovery) in the <c>store</c> role
+    /// for this session.
+    /// </summary>
+    public bool SupportsDiscovery => SupportedProtocols.Any(
+        protocol => protocol.Protocol == 3 &&
+                    string.Equals(protocol.Role, "store", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// True when the server negotiated Protocol 1 (ChannelStreaming) in a producer-capable role

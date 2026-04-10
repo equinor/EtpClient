@@ -24,6 +24,12 @@ public sealed class SampleConsoleOptions
     public bool ShowSessionDetails { get; set; }
 
     /// <summary>
+    /// When <see langword="true"/>, the sample skips Protocol 3 discovery even if the
+    /// server negotiated Discovery support.
+    /// </summary>
+    public bool SkipDiscovery { get; set; }
+
+    /// <summary>
     /// ETP message encoding to use for the connection.
     /// Accepted values: <c>Binary</c> (default) or <c>Json</c>.
     /// </summary>

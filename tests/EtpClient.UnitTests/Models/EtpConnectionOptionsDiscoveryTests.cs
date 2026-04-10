@@ -22,12 +22,12 @@ public sealed class EtpConnectionOptionsDiscoveryTests
     }
 
     [Fact]
-    public void DefaultRequestedProtocols_DiscoveryRoleIsCustomer()
+    public void DefaultRequestedProtocols_DiscoveryRoleIsStore()
     {
         var discovery = DefaultProtocols.FirstOrDefault(p => p.Protocol == 3);
 
         Assert.NotNull(discovery);
-        Assert.Equal("customer", discovery.Role);
+        Assert.Equal("store", discovery.Role);
     }
 
     [Fact]

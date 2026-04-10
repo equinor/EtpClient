@@ -102,7 +102,7 @@ public sealed class SampleConsoleRunnerChannelStreamingTests
     {
         var connResult = SampleTestData.ConnectionResult(supportedProtocols:
         [
-            new SupportedProtocol(3, ProtocolVersion.Etp11, "customer"),
+            new SupportedProtocol(3, ProtocolVersion.Etp11, "store"),
         ]);
 
         var connector = Substitute.For<IEtpConnector>();

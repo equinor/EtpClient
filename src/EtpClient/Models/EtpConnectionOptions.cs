@@ -18,11 +18,11 @@ public sealed class EtpConnectionOptions
         new SupportedProtocol(
             Protocol: 1,
             Version: ProtocolVersion.Etp11,
-            Role: "consumer"),
+            Role: "producer"),
         new SupportedProtocol(
             Protocol: 3,
             Version: ProtocolVersion.Etp11,
-            Role: "customer"),
+            Role: "store"),
     ];
 
     /// <summary>
@@ -41,8 +41,9 @@ public sealed class EtpConnectionOptions
 
     /// <summary>
     /// Protocol capabilities to advertise in RequestSession.
-    /// Defaults to the ChannelStreaming protocol in the <c>consumer</c> role,
-    /// which matches the WITSML ETP client profile used by the sample app.
+    /// Defaults to requesting the server fulfill the ChannelStreaming <c>producer</c>
+    /// role and the Discovery <c>store</c> role, which matches the client-side
+    /// workflows used by this library and the sample app.
     /// </summary>
     public IReadOnlyList<SupportedProtocol> RequestedProtocols { get; }
 

@@ -146,9 +146,8 @@ internal sealed class AvroReader
     public void SkipFixed(int length) => _pos += length;
 
     /// <summary>
-    /// Skips an ETP DataValue union.
-    /// DataValue.item is a union of 17 types (indices 0–16).
-    /// For the minimal connection slice we skip the value without decoding it.
+    /// Skips an ETP DataValue union using the v1.1 core/schema ordering.
+    /// This is used during session negotiation when skipping protocolCapabilities maps.
     /// </summary>
     public void SkipDataValue()
     {
@@ -157,31 +156,32 @@ internal sealed class AvroReader
         {
             case 0:  // null — no bytes
                 break;
-            case 1:  // boolean
-                SkipBool();
-                break;
-            case 2:  // int
-                SkipInt();
-                break;
-            case 3:  // long
-                SkipLong();
-                break;
-            case 4:  // float
-                _pos += 4;
-                break;
-            case 5:  // double
+            case 1:  // double
                 _pos += 8;
                 break;
-            case 6:  // string
+            case 2:  // float
+                _pos += 4;
+                break;
+            case 3:  // int
+                SkipInt();
+                break;
+            case 4:  // long
+                SkipLong();
+                break;
+            case 5:  // string
                 SkipString();
                 break;
-            case 7:  // bytes
+            case 6:  // vector (ArrayOfDouble)
+                SkipBytes();
+                break;
+            case 7:  // boolean
+                SkipBool();
+                break;
+            case 8:  // bytes
                 SkipBytes();
                 break;
             default:
-                // ArrayOf* or AnySparseArray variants — skip as bytes (they are stored as bytes arrays)
-                SkipBytes();
-                break;
+                throw new InvalidOperationException($"Unsupported DataValue union index {index} while skipping protocolCapabilities.");
         }
     }
 

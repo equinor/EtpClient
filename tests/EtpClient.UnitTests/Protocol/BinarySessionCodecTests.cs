@@ -89,6 +89,30 @@ public sealed class BinarySessionCodecTests
         Assert.Equal("1.0", session.ServerApplicationVersion);
     }
 
+    [Fact]
+    public void DecodeOpenSession_WithProtocolCapabilities_PreservesLaterProtocols()
+    {
+        var serverId = Guid.NewGuid();
+        var frame = BuildOpenSessionFrameWithProtocolCapabilities(serverId, "TestServer", "1.0");
+        var codec = new BinaryEtpSessionCodec();
+
+        var (_, session) = codec.DecodeOpenSession(frame);
+
+        Assert.Collection(
+            session.SupportedProtocols,
+            protocol =>
+            {
+                Assert.Equal(1, protocol.Protocol);
+                Assert.Equal("producer", protocol.Role);
+            },
+            protocol =>
+            {
+                Assert.Equal(3, protocol.Protocol);
+                Assert.Equal("store", protocol.Role);
+            });
+        Assert.True(session.SupportsDiscovery);
+    }
+
     // ── DecodeProtocolException ───────────────────────────────────────────────
 
     [Fact]
@@ -117,6 +141,51 @@ public sealed class BinarySessionCodecTests
         w.WriteString(id.ToString());
         w.WriteArrayStart(0);   // supportedProtocols
         w.WriteArrayStart(0);   // supportedObjects
+        return w.ToArray();
+    }
+
+    private static ReadOnlyMemory<byte> BuildOpenSessionFrameWithProtocolCapabilities(
+        Guid serverId, string appName, string appVersion)
+    {
+        var w = new AvroWriter();
+        w.WriteInt(0);
+        w.WriteInt(EtpMessageType.OpenSession);
+        w.WriteLong(1L);
+        w.WriteLong(2L);
+        w.WriteInt(EtpMessageFlags.FinalPart);
+        w.WriteString(appName);
+        w.WriteString(appVersion);
+        w.WriteString(serverId.ToString());
+
+        w.WriteArrayStart(2);
+
+        w.WriteInt(1);
+        w.WriteInt(ProtocolVersion.Etp11.Major);
+        w.WriteInt(ProtocolVersion.Etp11.Minor);
+        w.WriteInt(ProtocolVersion.Etp11.Revision);
+        w.WriteInt(ProtocolVersion.Etp11.Patch);
+        w.WriteString("producer");
+        w.WriteMapStart(1);
+        w.WriteString("SimpleStreamer");
+        w.WriteLong(7L); // DataValue union index: boolean
+        w.WriteBool(true);
+        w.WriteMapEnd();
+
+        w.WriteInt(3);
+        w.WriteInt(ProtocolVersion.Etp11.Major);
+        w.WriteInt(ProtocolVersion.Etp11.Minor);
+        w.WriteInt(ProtocolVersion.Etp11.Revision);
+        w.WriteInt(ProtocolVersion.Etp11.Patch);
+        w.WriteString("store");
+        w.WriteMapStart(1);
+        w.WriteString("MaxResponseCount");
+        w.WriteLong(3L); // DataValue union index: int
+        w.WriteInt(1000);
+        w.WriteMapEnd();
+
+        w.WriteArrayEnd();
+        w.WriteArrayStart(0);
+
         return w.ToArray();
     }
 

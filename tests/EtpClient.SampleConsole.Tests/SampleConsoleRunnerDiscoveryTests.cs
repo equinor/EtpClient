@@ -131,6 +131,26 @@ public sealed class SampleConsoleRunnerDiscoveryTests
         Assert.DoesNotContain("Discovery Results", capture.Out);
     }
 
+    [Fact]
+    public async Task RunAsync_WhenSkipDiscoveryEnabled_DoesNotCallDiscoverResourcesAsync()
+    {
+        var connector = Substitute.For<IEtpConnector>();
+        connector.ConnectAsync(Arg.Any<EtpConnectionOptions>(), Arg.Any<CancellationToken>())
+            .Returns(SampleTestData.ConnectionResult(supportedProtocols: [DiscoveryProtocol]));
+
+        var capture = new TestOutputCapture();
+        var options = SampleTestData.ValidOptions();
+        options.SkipDiscovery = true;
+        var runner = CreateRunner(options, capture, () => connector);
+
+        var outcome = await runner.RunAsync();
+
+        Assert.True(outcome.Succeeded);
+        Assert.Null(outcome.DiscoveryResult);
+        await connector.DidNotReceive().DiscoverResourcesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        Assert.DoesNotContain("Discovery Results", capture.Out);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private static SampleConsoleRunner CreateRunner(

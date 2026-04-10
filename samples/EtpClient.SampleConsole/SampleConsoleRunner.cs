@@ -69,12 +69,17 @@ public sealed class SampleConsoleRunner
             DiscoveryResult? discoveryResult = null;
             ChannelDescriptionResult? channelDescriptionResult = null;
 
-            if (result.Session.SupportsDiscovery)
+            if (_options.SkipDiscovery)
             {
-                _logger.LogInformation("Discovering resources at eml://...");
+                _logger.LogInformation("Skipping discovery because it is disabled in the sample configuration.");
+            }
+            else if (result.Session.SupportsDiscovery)
+            {
+                var uri = "eml://witsml14/well(93c581f9-f11b-49a2-9cdb-ca52787bc628)/wellbore(45b3380b-8cb6-46b7-a510-28d6a842e1c8)/log(MSP_Surface_Time_VLOG)";
+                _logger.LogInformation($"Discovering resources at {uri}...");
                 try
                 {
-                    discoveryResult = await connector.DiscoverResourcesAsync("eml://", ct).ConfigureAwait(false);
+                    discoveryResult = await connector.DiscoverResourcesAsync(uri, ct).ConfigureAwait(false);
                 }
                 catch (EtpDiscoveryException ex)
                 {

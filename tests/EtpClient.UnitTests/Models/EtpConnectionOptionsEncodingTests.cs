@@ -16,11 +16,11 @@ public sealed class EtpConnectionOptionsEncodingTests
         var options = new EtpConnectionOptions(DefaultUri, "user", "pass");
 
         Assert.Equal(EtpMessageEncoding.Binary, options.MessageEncoding);
-        // Protocol 1 (ChannelStreaming, consumer) must still be in the default set
+        // Protocol 1 (ChannelStreaming, producer) must still be in the default set
         var proto1 = options.RequestedProtocols.SingleOrDefault(p => p.Protocol == 1);
         Assert.NotNull(proto1);
         Assert.Equal(ProtocolVersion.Etp11, proto1.Version);
-        Assert.Equal("consumer", proto1.Role);
+        Assert.Equal("producer", proto1.Role);
     }
 
     [Fact]
