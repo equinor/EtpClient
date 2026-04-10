@@ -10,6 +10,12 @@ namespace EtpClient.SampleConsole.Tests;
 /// </summary>
 public sealed class SampleConsoleRunnerSuccessTests
 {
+    private static readonly IReadOnlyList<SupportedProtocol> SupportedProtocols =
+    [
+        new SupportedProtocol(1, ProtocolVersion.Etp11, "producer"),
+        new SupportedProtocol(3, ProtocolVersion.Etp11, "store"),
+    ];
+
     [Fact]
     public async Task RunAsync_WithValidOptions_ReturnsSucceeded()
     {
@@ -122,7 +128,11 @@ public sealed class SampleConsoleRunnerSuccessTests
     {
         // Arrange
         var instanceId = Guid.NewGuid();
-        var result = SampleTestData.ConnectionResult(instanceId: instanceId, appName: "DetailServer", appVersion: "3.0");
+        var result = SampleTestData.ConnectionResult(
+            instanceId: instanceId,
+            appName: "DetailServer",
+            appVersion: "3.0",
+            supportedProtocols: SupportedProtocols);
         var connector = Substitute.For<IEtpConnector>();
         connector.ConnectAsync(Arg.Any<EtpConnectionOptions>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -138,6 +148,9 @@ public sealed class SampleConsoleRunnerSuccessTests
         Assert.Contains("DetailServer", capture.Out);
         Assert.Contains("3.0", capture.Out);
         Assert.Contains(instanceId.ToString(), capture.Out);
+        Assert.Contains("Protocols:", capture.Out);
+        Assert.Contains("1 v1.1.0.0 role=producer", capture.Out);
+        Assert.Contains("3 v1.1.0.0 role=store", capture.Out);
     }
 
     private static SampleConsoleRunner CreateRunner(

@@ -25,13 +25,14 @@ internal static class SampleTestData
     public static NegotiatedSessionInfo NegotiatedSession(
         string appName = "TestServer",
         string appVersion = "1.0.0",
-        Guid? instanceId = null) =>
+        Guid? instanceId = null,
+        IReadOnlyList<SupportedProtocol>? supportedProtocols = null) =>
         new()
         {
             ServerApplicationName = appName,
             ServerApplicationVersion = appVersion,
             ServerInstanceId = instanceId ?? Guid.NewGuid(),
-            SupportedProtocols = Array.Empty<SupportedProtocol>(),
+            SupportedProtocols = supportedProtocols ?? Array.Empty<SupportedProtocol>(),
             SupportedCompression = string.Empty,
             SupportedFormats = Array.Empty<string>(),
         };
@@ -41,10 +42,11 @@ internal static class SampleTestData
         string endpointHost = "localhost",
         string appName = "TestServer",
         string appVersion = "1.0.0",
-        Guid? instanceId = null) =>
+        Guid? instanceId = null,
+        IReadOnlyList<SupportedProtocol>? supportedProtocols = null) =>
         new()
         {
-            Session = NegotiatedSession(appName, appVersion, instanceId),
+            Session = NegotiatedSession(appName, appVersion, instanceId, supportedProtocols),
             ConnectedAtUtc = DateTimeOffset.UtcNow,
             EndpointHost = endpointHost,
             MessageEncoding = EtpMessageEncoding.Binary,

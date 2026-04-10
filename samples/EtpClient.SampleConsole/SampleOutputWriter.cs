@@ -31,6 +31,17 @@ public sealed class SampleOutputWriter
         {
             _out.WriteLine($"  Server   : {outcome.ServerApplicationName} {outcome.ServerApplicationVersion}");
             _out.WriteLine($"  Instance : {outcome.ServerInstanceId}");
+
+            if (outcome.SupportedProtocols.Count == 0)
+            {
+                _out.WriteLine("  Protocols: (none reported)");
+            }
+            else
+            {
+                _out.WriteLine("  Protocols:");
+                foreach (var protocol in outcome.SupportedProtocols)
+                    _out.WriteLine($"    - {protocol.Protocol} v{protocol.Version} role={protocol.Role}");
+            }
         }
 
         _out.WriteLine("================================");
@@ -47,5 +58,33 @@ public sealed class SampleOutputWriter
         _error.WriteLine($"  Message  : {outcome.FailureMessage}");
         _error.WriteLine("=========================");
         _error.WriteLine();
+    }
+
+    /// <summary>Writes a discovery result summary to stdout.</summary>
+    public void WriteDiscovery(SampleRunOutcome outcome)
+    {
+        var discovery = outcome.DiscoveryResult;
+        if (discovery is null)
+            return;
+
+        _out.WriteLine();
+        _out.WriteLine("=== Discovery Results ===");
+        _out.WriteLine($"  URI      : {discovery.RequestedUri}");
+
+        if (discovery.WasEmptyAcknowledged || discovery.Resources.Count == 0)
+        {
+            _out.WriteLine("  (no children found)");
+        }
+        else
+        {
+            foreach (var resource in discovery.Resources)
+            {
+                _out.WriteLine($"  [{resource.ResourceType}] {resource.Name}");
+                _out.WriteLine($"    Uri: {resource.Uri}");
+            }
+        }
+
+        _out.WriteLine("=========================");
+        _out.WriteLine();
     }
 }

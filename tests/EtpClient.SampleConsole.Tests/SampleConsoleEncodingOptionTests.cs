@@ -73,6 +73,22 @@ public sealed class SampleConsoleEncodingOptionTests
         Assert.Equal(EtpMessageEncoding.Binary, outcome.MessageEncoding);
     }
 
+    [Fact]
+    public void SampleRunOutcome_FromSuccess_ReportsSupportedProtocols()
+    {
+        var result = SampleTestData.ConnectionResult(
+            supportedProtocols:
+            [
+                new SupportedProtocol(3, ProtocolVersion.Etp11, "store"),
+            ]);
+
+        var outcome = SampleRunOutcome.FromSuccess(result);
+
+        Assert.Single(outcome.SupportedProtocols);
+        Assert.Equal(3, outcome.SupportedProtocols[0].Protocol);
+        Assert.Equal("store", outcome.SupportedProtocols[0].Role);
+    }
+
     // ── SampleOutputWriter includes encoding in success output ────────────────
 
     [Fact]

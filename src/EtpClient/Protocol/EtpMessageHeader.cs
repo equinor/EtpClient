@@ -1,5 +1,22 @@
 namespace EtpClient.Protocol;
 
+/// <summary>ETP protocol number constants.</summary>
+internal static class EtpProtocol
+{
+    public const int Core = 0;
+    public const int Discovery = 3;
+}
+
+/// <summary>ETP Protocol 3 (Discovery) message type constants.</summary>
+internal static class EtpDiscoveryMessageType
+{
+    /// <summary>GetResources request (customer → store).</summary>
+    public const int GetResources = 1;
+
+    /// <summary>GetResourcesResponse (store → customer, multipart one-resource-per-message).</summary>
+    public const int GetResourcesResponse = 2;
+}
+
 /// <summary>ETP Protocol 0 (Core) message type constants.</summary>
 internal static class EtpMessageType
 {

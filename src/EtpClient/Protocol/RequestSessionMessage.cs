@@ -58,15 +58,13 @@ internal sealed class RequestSessionMessage
             w.WriteInt(p.Version.Revision);
             w.WriteInt(p.Version.Patch);
             w.WriteString(p.Role);
-            // protocolCapabilities: empty map<string, DataValue>
+            // Empty Avro collections are encoded as a single zero-count block.
             w.WriteMapStart(0);
-            w.WriteMapEnd();
         }
         w.WriteArrayEnd();
 
         // supportedObjects: empty array for a minimal client role handshake
         w.WriteArrayStart(0);
-        w.WriteArrayEnd();
 
         return w.ToArray();
     }

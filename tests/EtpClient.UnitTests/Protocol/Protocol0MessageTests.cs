@@ -76,6 +76,59 @@ public sealed class Protocol0MessageTests
         Assert.DoesNotContain("Authorization", text, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void RequestSession_Encode_WithMultipleProtocols_PreservesAllProtocolsAndSupportedObjectsBoundary()
+    {
+        var msg = new RequestSessionMessage(
+            applicationName: "EtpClient",
+            applicationVersion: "1.0",
+            clientInstanceId: Guid.NewGuid(),
+            requestedProtocols:
+            [
+                new SupportedProtocol(1, ProtocolVersion.Etp11, "consumer"),
+                new SupportedProtocol(3, ProtocolVersion.Etp11, "customer"),
+            ]);
+
+        var bytes = msg.EncodeFrame(messageId: 1L);
+        var reader = new AvroReader(bytes);
+
+        _ = EtpMessageHeader.ReadFrom(reader);
+        Assert.Equal("EtpClient", reader.ReadString());
+        Assert.Equal("1.0", reader.ReadString());
+
+        var decodedProtocols = new List<SupportedProtocol>();
+        long blockCount;
+        while ((blockCount = reader.ReadBlockCount()) > 0)
+        {
+            for (var i = 0; i < blockCount; i++)
+            {
+                var protocol = reader.ReadInt();
+                var major = reader.ReadInt();
+                var minor = reader.ReadInt();
+                var revision = reader.ReadInt();
+                var patch = reader.ReadInt();
+                var role = reader.ReadString();
+                reader.SkipStringDataValueMap();
+                decodedProtocols.Add(new SupportedProtocol(protocol, new ProtocolVersion(major, minor, revision, patch), role));
+            }
+        }
+
+        Assert.Collection(
+            decodedProtocols,
+            p =>
+            {
+                Assert.Equal(1, p.Protocol);
+                Assert.Equal("consumer", p.Role);
+            },
+            p =>
+            {
+                Assert.Equal(3, p.Protocol);
+                Assert.Equal("customer", p.Role);
+            });
+
+        Assert.Equal(0, reader.ReadBlockCount());
+    }
+
     // ── OpenSession decode ───────────────────────────────────────────────────
 
     [Fact]

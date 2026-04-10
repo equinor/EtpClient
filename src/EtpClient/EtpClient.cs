@@ -70,6 +70,33 @@ public sealed class EtpClient : IAsyncDisposable
     }
 
     /// <summary>
+    /// Discovers immediate child resources of the specified ETP URI using Protocol 3 (Discovery).
+    /// </summary>
+    /// <param name="uri">
+    /// The ETP URI whose children are to be discovered (e.g. <c>"eml://"</c> for the root).
+    /// </param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// A <see cref="DiscoveryResult"/> containing the list of discovered resources plus
+    /// metadata about whether the server acknowledged an empty result.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the session is not in the <see cref="EtpConnectionState.Connected"/> state.
+    /// Call <see cref="ConnectAsync"/> first.
+    /// </exception>
+    /// <exception cref="EtpDiscoveryException">
+    /// Thrown when the server returns a <c>ProtocolException</c> or an unexpected message
+    /// during the discovery exchange.
+    /// </exception>
+    public Task<DiscoveryResult> DiscoverResourcesAsync(string uri, CancellationToken ct = default)
+    {
+        if (_manager is null || State != EtpConnectionState.Connected)
+            throw new InvalidOperationException("Discovery requires an active Connected session.");
+
+        return _manager.DiscoverResourcesAsync(uri, ct);
+    }
+
+    /// <summary>
     /// Sends a WebSocket close frame and transitions to <see cref="EtpConnectionState.Closed"/>.
     /// Safe to call when already closed.
     /// </summary>

@@ -14,6 +14,10 @@ public sealed class EtpConnector : IEtpConnector
         _client.ConnectAsync(options, ct);
 
     /// <inheritdoc/>
+    public Task<DiscoveryResult> DiscoverResourcesAsync(string uri, CancellationToken ct) =>
+        _client.DiscoverResourcesAsync(uri, ct);
+
+    /// <inheritdoc/>
     public Task CloseAsync(CancellationToken ct) => _client.CloseAsync(ct);
 
     /// <inheritdoc/>

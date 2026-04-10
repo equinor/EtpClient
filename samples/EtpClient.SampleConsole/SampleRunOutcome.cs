@@ -61,11 +61,17 @@ public sealed class SampleRunOutcome
     /// <summary>Server instance identifier. Null on failure.</summary>
     public Guid? ServerInstanceId { get; }
 
+    /// <summary>Protocols negotiated by the server during OpenSession. Empty on failure.</summary>
+    public IReadOnlyList<SupportedProtocol> SupportedProtocols { get; }
+
     /// <summary>The endpoint host (without credentials) for display purposes.</summary>
     public string EndpointHost { get; }
 
     /// <summary>The ETP message encoding used for the session. Null on failure.</summary>
     public EtpMessageEncoding? MessageEncoding { get; }
+
+    /// <summary>Discovery result from the post-connect resource traversal. Null on failure or if discovery was skipped.</summary>
+    public DiscoveryResult? DiscoveryResult { get; }
 
     private SampleRunOutcome(
         bool succeeded,
@@ -76,7 +82,9 @@ public sealed class SampleRunOutcome
         string? serverApplicationName,
         string? serverApplicationVersion,
         Guid? serverInstanceId,
-        EtpMessageEncoding? messageEncoding = null)
+        IReadOnlyList<SupportedProtocol>? supportedProtocols,
+        EtpMessageEncoding? messageEncoding = null,
+        DiscoveryResult? discoveryResult = null)
     {
         Succeeded = succeeded;
         FinalState = finalState;
@@ -86,11 +94,15 @@ public sealed class SampleRunOutcome
         ServerApplicationName = serverApplicationName;
         ServerApplicationVersion = serverApplicationVersion;
         ServerInstanceId = serverInstanceId;
+        SupportedProtocols = supportedProtocols ?? Array.Empty<SupportedProtocol>();
         MessageEncoding = messageEncoding;
+        DiscoveryResult = discoveryResult;
     }
 
-    /// <summary>Creates a success outcome from a completed connection result.</summary>
-    public static SampleRunOutcome FromSuccess(EtpConnectionResult result) =>
+    /// <summary>Creates a success outcome from a completed connection result and optional discovery.</summary>
+    public static SampleRunOutcome FromSuccess(
+        EtpConnectionResult result,
+        DiscoveryResult? discoveryResult = null) =>
         new(
             succeeded: true,
             finalState: EtpConnectionState.Connected,
@@ -100,7 +112,9 @@ public sealed class SampleRunOutcome
             serverApplicationName: result.Session.ServerApplicationName,
             serverApplicationVersion: result.Session.ServerApplicationVersion,
             serverInstanceId: result.Session.ServerInstanceId,
-            messageEncoding: result.MessageEncoding);
+            supportedProtocols: result.Session.SupportedProtocols,
+            messageEncoding: result.MessageEncoding,
+            discoveryResult: discoveryResult);
 
     /// <summary>Creates a failure outcome from an <see cref="EtpConnectionException"/>.</summary>
     public static SampleRunOutcome FromException(EtpConnectionException ex, string endpointHost) =>
@@ -114,7 +128,8 @@ public sealed class SampleRunOutcome
             failureMessage: ex.Message,
             serverApplicationName: null,
             serverApplicationVersion: null,
-            serverInstanceId: null);
+            serverInstanceId: null,
+            supportedProtocols: null);
 
     /// <summary>Creates a validation failure outcome before any connection attempt.</summary>
     public static SampleRunOutcome FromValidationError(string message, string endpointHost = "") =>
@@ -126,7 +141,8 @@ public sealed class SampleRunOutcome
             failureMessage: message,
             serverApplicationName: null,
             serverApplicationVersion: null,
-            serverInstanceId: null);
+            serverInstanceId: null,
+            supportedProtocols: null);
 
     /// <summary>Maps this outcome to a process exit code.</summary>
     public int ToExitCode() =>

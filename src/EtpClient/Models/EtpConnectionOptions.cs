@@ -19,6 +19,10 @@ public sealed class EtpConnectionOptions
             Protocol: 1,
             Version: ProtocolVersion.Etp11,
             Role: "consumer"),
+        new SupportedProtocol(
+            Protocol: 3,
+            Version: ProtocolVersion.Etp11,
+            Role: "customer"),
     ];
 
     /// <summary>

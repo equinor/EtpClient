@@ -130,6 +130,83 @@ internal sealed class JsonEtpSessionCodec : IEtpSessionCodec
         return (header, errorCode, message);
     }
 
+    // ── Protocol 3 (Discovery) ───────────────────────────────────────────────
+
+    public ReadOnlyMemory<byte> EncodeGetResources(string uri, long messageId)
+    {
+        var msg = new JsonArray
+        {
+            // Header
+            new JsonObject
+            {
+                ["protocol"] = EtpProtocol.Discovery,
+                ["messageType"] = EtpDiscoveryMessageType.GetResources,
+                ["correlationId"] = 0L,
+                ["messageId"] = messageId,
+                ["messageFlags"] = EtpMessageFlags.FinalPart,
+            },
+            // Body: { "uri": "..." }
+            new JsonObject
+            {
+                ["uri"] = uri,
+            },
+        };
+
+        return System.Text.Encoding.UTF8.GetBytes(msg.ToJsonString());
+    }
+
+    public (EtpMessageHeader Header, DiscoveredResource Resource) DecodeGetResourcesResponse(ReadOnlyMemory<byte> frame)
+    {
+        using var doc = JsonDocument.Parse(frame);
+        var root = doc.RootElement;
+
+        var header = ParseHeader(root[0]);
+        var bodyEl = root[1];
+        var resourceEl = bodyEl.GetProperty("resource");
+
+        var customData = new Dictionary<string, string>();
+        if (resourceEl.TryGetProperty("customData", out var customDataEl))
+        {
+            foreach (var prop in customDataEl.EnumerateObject())
+                customData[prop.Name] = prop.Value.GetString() ?? string.Empty;
+        }
+
+        // uuid is a nullable union in Avro JSON: null | { "string": "..." } | plain string
+        string? uuid = null;
+        if (resourceEl.TryGetProperty("uuid", out var uuidEl))
+        {
+            if (uuidEl.ValueKind == JsonValueKind.String)
+                uuid = uuidEl.GetString();
+            else if (uuidEl.ValueKind == JsonValueKind.Object &&
+                     uuidEl.TryGetProperty("string", out var innerUuid))
+                uuid = innerUuid.GetString();
+        }
+
+        var resource = new DiscoveredResource
+        {
+            Uri = resourceEl.GetProperty("uri").GetString() ?? string.Empty,
+            ContentType = resourceEl.GetProperty("contentType").GetString() ?? string.Empty,
+            Name = resourceEl.GetProperty("name").GetString() ?? string.Empty,
+            ChannelSubscribable = resourceEl.GetProperty("channelSubscribable").GetBoolean(),
+            CustomData = customData,
+            ResourceType = resourceEl.GetProperty("resourceType").GetString() ?? string.Empty,
+            HasChildren = resourceEl.GetProperty("hasChildren").GetInt32(),
+            Uuid = uuid,
+            LastChanged = resourceEl.TryGetProperty("lastChanged", out var lc) ? lc.GetInt64() : 0L,
+            ObjectNotifiable = resourceEl.GetProperty("objectNotifiable").GetBoolean(),
+        };
+
+        return (header, resource);
+    }
+
+    // ── shared helpers ────────────────────────────────────────────────────────
+
+    public EtpMessageHeader DecodeHeader(ReadOnlyMemory<byte> frame)
+    {
+        using var doc = JsonDocument.Parse(frame);
+        return ParseHeader(doc.RootElement[0]);
+    }
+
     private static EtpMessageHeader ParseHeader(JsonElement headerEl) =>
         new(
             Protocol: headerEl.GetProperty("protocol").GetInt32(),

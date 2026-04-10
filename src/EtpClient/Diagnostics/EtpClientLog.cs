@@ -34,4 +34,22 @@ internal static partial class EtpClientLog
 
     [LoggerMessage(1005, LogLevel.Information, "ETP session closed for {EndpointHost}")]
     public static partial void SessionClosed(ILogger logger, string endpointHost);
+
+    [LoggerMessage(1007, LogLevel.Debug,
+        "ETP discovery request for URI '{DiscoveryUri}' at {EndpointHost}")]
+    public static partial void DiscoveryStarted(ILogger logger, string endpointHost, string discoveryUri);
+
+    [LoggerMessage(1008, LogLevel.Debug,
+        "ETP discovery returned {ResourceCount} resource(s) for URI '{DiscoveryUri}' at {EndpointHost}")]
+    public static partial void DiscoveryCompleted(
+        ILogger logger, string endpointHost, string discoveryUri, int resourceCount);
+
+    [LoggerMessage(1009, LogLevel.Debug,
+        "ETP discovery for URI '{DiscoveryUri}' at {EndpointHost}: no children (Acknowledge)")]
+    public static partial void DiscoveryEmpty(ILogger logger, string endpointHost, string discoveryUri);
+
+    [LoggerMessage(1010, LogLevel.Warning,
+        "ETP discovery failed for URI '{DiscoveryUri}' at {EndpointHost}: etpErrorCode={EtpErrorCode}")]
+    public static partial void DiscoveryFailed(
+        ILogger logger, string endpointHost, string discoveryUri, int? etpErrorCode);
 }

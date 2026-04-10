@@ -66,10 +66,29 @@ public sealed class SampleConsoleRunner
             _logger.LogInformation("Connecting to {EndpointHost}...", endpointHost);
             var result = await connector.ConnectAsync(connectionOptions, ct).ConfigureAwait(false);
 
-            var successOutcome = SampleRunOutcome.FromSuccess(result);
-            _outputWriter.WriteSuccess(successOutcome, _options.ShowSessionDetails);
+            DiscoveryResult? discoveryResult = null;
+            if (result.Session.SupportsDiscovery)
+            {
+                _logger.LogInformation("Discovering resources at eml://...");
+                try
+                {
+                    discoveryResult = await connector.DiscoverResourcesAsync("eml://", ct).ConfigureAwait(false);
+                }
+                catch (EtpDiscoveryException ex)
+                {
+                    _logger.LogWarning("Discovery failed: {Message}", ex.Message);
+                }
+            }
+            else
+            {
+                _logger.LogInformation("Skipping discovery because the server did not negotiate Protocol 3 (Discovery).");
+            }
 
-            _logger.LogInformation("Session established. Closing...");
+            var successOutcome = SampleRunOutcome.FromSuccess(result, discoveryResult);
+            _outputWriter.WriteSuccess(successOutcome, _options.ShowSessionDetails);
+            _outputWriter.WriteDiscovery(successOutcome);
+
+            _logger.LogInformation("Closing session...");
             await connector.CloseAsync(ct).ConfigureAwait(false);
 
             return successOutcome;

@@ -95,4 +95,16 @@ public sealed class SampleOutputWriterFailureTests
         Assert.DoesNotContain("Authorization:", capture.Out);
         Assert.DoesNotContain("Basic ", capture.Out);
     }
+
+    [Fact]
+    public void WriteSuccess_WithNoNegotiatedProtocols_ShowsNoneReported()
+    {
+        var capture = new TestOutputCapture();
+        var writer = capture.CreateOutputWriter();
+        var outcome = SampleRunOutcome.FromSuccess(SampleTestData.ConnectionResult());
+
+        writer.WriteSuccess(outcome, showSessionDetails: true);
+
+        Assert.Contains("Protocols: (none reported)", capture.Out);
+    }
 }

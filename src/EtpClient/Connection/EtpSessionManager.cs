@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 namespace EtpClient.Connection;
 
 /// <summary>
-/// Manages a single ETP session lifecycle: connect → handshake → close.
+/// Manages a single ETP session lifecycle: connect → handshake → discovery → close.
 /// Thread-safety: one concurrent call to <see cref="ConnectAsync"/> or
 /// <see cref="CloseAsync"/> at a time.
 /// </summary>
@@ -20,6 +20,12 @@ internal sealed class EtpSessionManager
     private readonly ILogger _logger;
 
     private volatile int _state = (int)EtpConnectionState.Closed;
+
+    // Set after a successful Protocol 0 handshake; used by post-session operations.
+    private IEtpSessionCodec? _codec;
+    private string _host = string.Empty;
+    private long _nextMessageId = 1; // starts at 1; increment atomically before sending
+    private NegotiatedSessionInfo? _sessionInfo;
 
     public EtpConnectionState State => (EtpConnectionState)_state;
 
@@ -73,7 +79,11 @@ internal sealed class EtpSessionManager
             // Await response
             var responseFrame = await ReceiveFullFrameAsync(codec.FrameType, ct).ConfigureAwait(false);
 
-            return ProcessResponse(responseFrame, host, options, codec);
+            var result = ProcessResponse(responseFrame, host, options, codec);
+            _codec = codec;
+            _host = host;
+            _sessionInfo = result.Session;
+            return result;
         }
         catch (OperationCanceledException)
         {
@@ -141,6 +151,85 @@ internal sealed class EtpSessionManager
         {
             Interlocked.Exchange(ref _state, (int)EtpConnectionState.Closed);
         }
+    }
+
+    public async Task<DiscoveryResult> DiscoverResourcesAsync(string uri, CancellationToken ct)
+    {
+        if (State != EtpConnectionState.Connected || _codec is null)
+            throw new InvalidOperationException("Discovery requires an active Connected session.");
+
+        if (_sessionInfo is null || !_sessionInfo.SupportsDiscovery)
+        {
+            throw new EtpDiscoveryException(
+                "Discovery protocol (3) was not negotiated by the server.",
+                uri,
+                etpErrorCode: null);
+        }
+
+        var codec = _codec;
+        var host = _host;
+        var messageId = Interlocked.Increment(ref _nextMessageId);
+        EtpClientLog.DiscoveryStarted(_logger, host, uri);
+
+        var requestFrame = codec.EncodeGetResources(uri, messageId);
+        await _transport.SendAsync(requestFrame, codec.FrameType, endOfMessage: true, ct).ConfigureAwait(false);
+
+        var resources = new List<DiscoveredResource>();
+        var wasEmptyAcknowledged = false;
+
+        while (true)
+        {
+            var responseFrame = await ReceiveFullFrameAsync(codec.FrameType, ct).ConfigureAwait(false);
+            var header = codec.DecodeHeader(responseFrame);
+
+            if (header.CorrelationId != messageId)
+                continue;
+
+            if (header.Protocol == EtpProtocol.Discovery &&
+                header.MessageType == EtpDiscoveryMessageType.GetResourcesResponse)
+            {
+                var (_, resource) = codec.DecodeGetResourcesResponse(responseFrame);
+                resources.Add(resource);
+                if ((header.MessageFlags & EtpMessageFlags.FinalPart) != 0)
+                    break;
+            }
+            else if (header.Protocol == EtpProtocol.Discovery &&
+                     header.MessageType == EtpMessageType.Acknowledge)
+            {
+                wasEmptyAcknowledged = true;
+                break;
+            }
+            else if (header.MessageType == EtpMessageType.ProtocolException)
+            {
+                var (_, errorCode, message) = codec.DecodeProtocolException(responseFrame);
+                var detail = string.IsNullOrWhiteSpace(message)
+                    ? $"ETP error code {errorCode}"
+                    : $"{message} (ETP error code {errorCode})";
+                EtpClientLog.DiscoveryFailed(_logger, host, uri, errorCode);
+                throw new EtpDiscoveryException(
+                    $"Discovery failed for URI '{uri}': {detail}", uri, errorCode);
+            }
+            else
+            {
+                throw new EtpDiscoveryException(
+                    $"Unexpected message (protocol={header.Protocol}, type={header.MessageType}) during discovery for URI '{uri}'.",
+                    uri,
+                    etpErrorCode: null);
+            }
+        }
+
+        if (wasEmptyAcknowledged)
+            EtpClientLog.DiscoveryEmpty(_logger, host, uri);
+        else
+            EtpClientLog.DiscoveryCompleted(_logger, host, uri, resources.Count);
+
+        return new DiscoveryResult
+        {
+            RequestedUri = uri,
+            Resources = resources,
+            WasEmptyAcknowledged = wasEmptyAcknowledged,
+            MessageEncoding = codec.Encoding,
+        };
     }
 
     // ── private helpers ───────────────────────────────────────────────────────
