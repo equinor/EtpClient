@@ -135,6 +135,41 @@ public sealed class SampleOutputWriterChannelStreamingTests
         Assert.Empty(out_.ToString());
     }
 
+    [Fact]
+    public void WriteLiveData_WithChannelItems_PrintsIndexNameAndValue()
+    {
+        var out_ = new StringWriter();
+        var err = new StringWriter();
+        var writer = new SampleOutputWriter(out_, err);
+        var channelsById = new Dictionary<long, ChannelDefinition>
+        {
+            [7L] = new()
+            {
+                ChannelId = 7L,
+                ChannelUri = "eml://witsml14/well(abc)/log(L1)/channel(RPM)",
+                ChannelName = "RPM",
+                DataType = "double",
+                Uom = "rpm",
+                IndexType = "Time",
+                IndexUom = "ms",
+                IndexDirection = "Increasing",
+                Description = string.Empty,
+                Status = "Active",
+                Source = "test",
+                MeasureClass = string.Empty,
+            },
+        };
+
+        writer.WriteLiveData(
+            [new ChannelDataItem { Indexes = [12345L], ChannelId = 7L, Value = 98.6 }],
+            channelsById);
+
+        var output = out_.ToString();
+        Assert.Contains("12345", output);
+        Assert.Contains("RPM", output);
+        Assert.Contains("98.6", output);
+    }
+
     private static SampleRunOutcome CreateSuccessOutcomeWithStreaming(
         IReadOnlyList<long> subscribedIds, int eventsReceived, bool endedByRemove)
     {

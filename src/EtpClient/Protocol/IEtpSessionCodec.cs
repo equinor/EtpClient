@@ -60,6 +60,11 @@ internal interface IEtpSessionCodec
     // ── Protocol 1 (ChannelStreaming) ────────────────────────────────────────
 
     /// <summary>
+    /// Encodes a Protocol 1 Start frame with throttling parameters.
+    /// </summary>
+    ReadOnlyMemory<byte> EncodeChannelStreamingProtocolStart(int maxMessageRate, int maxDataItems, long messageId);
+
+    /// <summary>
     /// Encodes a ChannelDescribe frame for the given URIs, ready to send over WebSocket.
     /// </summary>
     ReadOnlyMemory<byte> EncodeChannelDescribe(IReadOnlyList<string> uris, long messageId);

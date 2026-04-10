@@ -117,10 +117,21 @@ public sealed class SampleConsoleRunner
                 }
             }
 
-            LiveStreamingResult? liveStreamingResult = null;
-            if (channelDescriptionResult is { Channels.Count: > 0 })
+            var streamableChannels = channelDescriptionResult?.Channels
+                .Where(IsStreamableChannel)
+                .ToList();
+
+            if (channelDescriptionResult is { Channels.Count: > 0 } && streamableChannels is { Count: 0 })
             {
-                var subscriptions = channelDescriptionResult.Channels
+                _logger.LogInformation(
+                    "Skipping live streaming and range requests because the described channels are not active session-registered channels.");
+            }
+
+            LiveStreamingResult? liveStreamingResult = null;
+            if (streamableChannels is { Count: > 0 })
+            {
+                var channelsById = streamableChannels.ToDictionary(channel => channel.ChannelId);
+                var subscriptions = streamableChannels
                     .Select(ch => new ChannelSubscriptionInfo(ch.ChannelId, startLatest: true, receiveChangeNotifications: false))
                     .ToList();
                 _logger.LogInformation("Starting live channel streaming for {Count} channel(s)...", subscriptions.Count);
@@ -131,6 +142,9 @@ public sealed class SampleConsoleRunner
                     await foreach (var ev in connector.StartChannelStreamingAsync(subscriptions, ct).ConfigureAwait(false))
                     {
                         eventsReceived++;
+                        if (ev.Kind == ChannelEventKind.Data && ev.DataItems.Count > 0)
+                            _outputWriter.WriteLiveData(ev.DataItems, channelsById);
+
                         if (ev.Kind == ChannelEventKind.Remove)
                         {
                             endedByRemove = true;
@@ -152,13 +166,13 @@ public sealed class SampleConsoleRunner
             }
 
             ChannelRangeResult? channelRangeResult = null;
-            if (channelDescriptionResult is { Channels.Count: > 0 }
+            if (streamableChannels is { Count: > 0 }
                 && _options.ChannelRangeFromIndex.HasValue
                 && _options.ChannelRangeToIndex.HasValue)
             {
                 var rangeRequest = new ChannelRangeRequestModel
                 {
-                    ChannelIds = channelDescriptionResult.Channels.Select(ch => ch.ChannelId).ToList(),
+                    ChannelIds = streamableChannels.Select(ch => ch.ChannelId).ToList(),
                     FromIndex = _options.ChannelRangeFromIndex.Value,
                     ToIndex = _options.ChannelRangeToIndex.Value,
                 };
@@ -217,4 +231,8 @@ public sealed class SampleConsoleRunner
         linkedCts.CancelAfter(TimeSpan.FromSeconds(_options.ProtocolRequestTimeoutSeconds));
         return linkedCts;
     }
+
+    private static bool IsStreamableChannel(ChannelDefinition channel) =>
+        channel.ChannelId >= 0 &&
+        !string.Equals(channel.Status, "Closed", StringComparison.OrdinalIgnoreCase);
 }

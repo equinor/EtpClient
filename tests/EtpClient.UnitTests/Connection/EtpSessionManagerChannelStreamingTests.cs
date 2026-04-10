@@ -48,6 +48,31 @@ public sealed class EtpSessionManagerChannelStreamingTests
     }
 
     [Fact]
+    public async Task DescribeChannelsAsync_SendsProtocol1StartBeforeChannelDescribe()
+    {
+        var protocolExceptionFrame = BuildProtocolExceptionFrame(correlationId: 3L, errorCode: 1003, message: "still testing");
+        var transport = BuildHandshakeAndFrameTransport([protocolExceptionFrame]);
+
+        var manager = new EtpSessionManager(transport, NullLogger.Instance);
+        await manager.ConnectAsync(DefaultOptions, CancellationToken.None);
+
+        var sentFrames = new List<ReadOnlyMemory<byte>>();
+        transport.SendAsync(default, default, default, default)
+            .ReturnsForAnyArgs(ci =>
+            {
+                sentFrames.Add((ReadOnlyMemory<byte>)ci[0]);
+                return ValueTask.CompletedTask;
+            });
+
+        await Assert.ThrowsAsync<EtpChannelStreamingException>(
+            () => manager.DescribeChannelsAsync(["eml://witsml14/logcurveinfo(RPM)"], CancellationToken.None));
+
+        Assert.Equal(2, sentFrames.Count);
+        Assert.Equal(EtpChannelStreamingMessageType.Start, new BinaryEtpSessionCodec().DecodeHeader(sentFrames[0]).MessageType);
+        Assert.Equal(EtpChannelStreamingMessageType.ChannelDescribe, new BinaryEtpSessionCodec().DecodeHeader(sentFrames[1]).MessageType);
+    }
+
+    [Fact]
     public async Task StartChannelStreamingAsync_ServerSendsChannelRemove_YieldsRemoveEventAndCompletes()
     {
         var removeFrame = BuildChannelRemoveFrame(channelId: 2L, reason: "Server shutdown", messageId: 3L);
@@ -163,6 +188,45 @@ public sealed class EtpSessionManagerChannelStreamingTests
         await manager.StopChannelStreamingAsync([1L], CancellationToken.None);
 
         Assert.Equal(EtpConnectionState.Connected, manager.State);
+    }
+
+    [Fact]
+    public async Task RequestChannelRangeAsync_AfterDescribe_DoesNotSendSecondProtocol1Start()
+    {
+        var describeFailureFrame = BuildProtocolExceptionFrame(correlationId: 3L, errorCode: 1003, message: "describe done");
+        var rangeFailureFrame = BuildProtocolExceptionFrame(correlationId: 4L, errorCode: 1003, message: "range done");
+        var transport = BuildHandshakeAndFrameTransport([describeFailureFrame, rangeFailureFrame]);
+
+        var manager = new EtpSessionManager(transport, NullLogger.Instance);
+        await manager.ConnectAsync(DefaultOptions, CancellationToken.None);
+
+        var sentFrames = new List<ReadOnlyMemory<byte>>();
+        transport.SendAsync(default, default, default, default)
+            .ReturnsForAnyArgs(ci =>
+            {
+                sentFrames.Add((ReadOnlyMemory<byte>)ci[0]);
+                return ValueTask.CompletedTask;
+            });
+
+        await Assert.ThrowsAsync<EtpChannelStreamingException>(
+            () => manager.DescribeChannelsAsync(["eml://witsml14/logcurveinfo(RPM)"], CancellationToken.None));
+
+        var request = new ChannelRangeRequestModel
+        {
+            ChannelIds = [1L],
+            FromIndex = 1L,
+            ToIndex = 2L,
+        };
+
+        await Assert.ThrowsAsync<EtpChannelStreamingException>(
+            () => manager.RequestChannelRangeAsync(request, CancellationToken.None));
+
+        var headers = sentFrames.Select(frame => new BinaryEtpSessionCodec().DecodeHeader(frame)).ToList();
+        Assert.Equal(3, headers.Count);
+        Assert.Equal(EtpChannelStreamingMessageType.Start, headers[0].MessageType);
+        Assert.Equal(EtpChannelStreamingMessageType.ChannelDescribe, headers[1].MessageType);
+        Assert.Equal(EtpChannelStreamingMessageType.ChannelRangeRequest, headers[2].MessageType);
+        Assert.Single(headers.Where(header => header.MessageType == EtpChannelStreamingMessageType.Start));
     }
 
     // ── T025 [US3]: RequestChannelRangeAsync ─────────────────────────────────

@@ -15,9 +15,12 @@ namespace EtpClient.Connection;
 internal sealed class EtpSessionManager
 {
     private const int ReceiveBufferSize = 64 * 1024; // 64 KiB — large enough for OpenSession
+    private const int Protocol1StartMaxMessageRate = 1;
+    private const int Protocol1StartMaxDataItems = int.MaxValue;
 
     private readonly IWebSocketTransport _transport;
     private readonly ILogger _logger;
+    private readonly SemaphoreSlim _channelStreamingStartLock = new(1, 1);
 
     private volatile int _state = (int)EtpConnectionState.Closed;
 
@@ -26,6 +29,7 @@ internal sealed class EtpSessionManager
     private string _host = string.Empty;
     private long _nextMessageId = 1; // starts at 1; increment atomically before sending
     private NegotiatedSessionInfo? _sessionInfo;
+    private bool _channelStreamingProtocolStarted;
 
     public EtpConnectionState State => (EtpConnectionState)_state;
 
@@ -245,6 +249,8 @@ internal sealed class EtpSessionManager
         var target = string.Join(", ", uris);
         EtpClientLog.DescribeChannelsStarted(_logger, host, target);
 
+        await EnsureChannelStreamingProtocolStartedAsync(codec, ct).ConfigureAwait(false);
+
         var requestFrame = codec.EncodeChannelDescribe(uris, messageId);
         await _transport.SendAsync(requestFrame, codec.FrameType, endOfMessage: true, ct).ConfigureAwait(false);
 
@@ -321,6 +327,8 @@ internal sealed class EtpSessionManager
         var messageId = Interlocked.Increment(ref _nextMessageId);
         EtpClientLog.StreamingStarted(_logger, host, subscriptions.Count);
 
+        await EnsureChannelStreamingProtocolStartedAsync(codec, ct).ConfigureAwait(false);
+
         var requestFrame = codec.EncodeChannelStreamingStart(subscriptions, messageId);
         await _transport.SendAsync(requestFrame, codec.FrameType, endOfMessage: true, ct).ConfigureAwait(false);
 
@@ -341,7 +349,19 @@ internal sealed class EtpSessionManager
             if (header.Protocol == EtpProtocol.ChannelStreaming &&
                 header.MessageType == EtpChannelStreamingMessageType.ChannelData)
             {
-                var (_, items) = codec.DecodeChannelData(responseFrame);
+                IReadOnlyList<ChannelDataItem> items;
+                try
+                {
+                    (_, items) = codec.DecodeChannelData(responseFrame);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or ArgumentOutOfRangeException)
+                {
+                    throw new EtpChannelStreamingException(
+                        $"Failed to decode ChannelData frame: {ex.Message}",
+                        "(live stream)",
+                        etpErrorCode: null,
+                        innerException: ex);
+                }
                 yield return new ChannelEvent
                 {
                     Kind = ChannelEventKind.Data,
@@ -432,6 +452,8 @@ internal sealed class EtpSessionManager
         var messageId = Interlocked.Increment(ref _nextMessageId);
         EtpClientLog.RangeRequestStarted(_logger, host, request.ChannelIds.Count);
 
+        await EnsureChannelStreamingProtocolStartedAsync(codec, ct).ConfigureAwait(false);
+
         var ranges = new[]
         {
             new ChannelRangeInfoWire(request.ChannelIds, request.FromIndex, request.ToIndex),
@@ -454,7 +476,19 @@ internal sealed class EtpSessionManager
             if (header.Protocol == EtpProtocol.ChannelStreaming &&
                 header.MessageType == EtpChannelStreamingMessageType.ChannelData)
             {
-                var (_, items) = codec.DecodeChannelData(responseFrame);
+                IReadOnlyList<ChannelDataItem> items;
+                try
+                {
+                    (_, items) = codec.DecodeChannelData(responseFrame);
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or ArgumentOutOfRangeException)
+                {
+                    throw new EtpChannelStreamingException(
+                        $"Failed to decode ChannelData frame: {ex.Message}",
+                        "(range request)",
+                        etpErrorCode: null,
+                        innerException: ex);
+                }
                 samples.AddRange(items);
                 if ((header.MessageFlags & EtpMessageFlags.FinalPart) != 0)
                     break;
@@ -489,6 +523,32 @@ internal sealed class EtpSessionManager
             WasMultipart = wasMultipart,
             State = ChannelRangeResultState.Completed,
         };
+    }
+
+    private async Task EnsureChannelStreamingProtocolStartedAsync(IEtpSessionCodec codec, CancellationToken ct)
+    {
+        if (_channelStreamingProtocolStarted)
+            return;
+
+        await _channelStreamingStartLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (_channelStreamingProtocolStarted)
+                return;
+
+            var messageId = Interlocked.Increment(ref _nextMessageId);
+            var frame = codec.EncodeChannelStreamingProtocolStart(
+                Protocol1StartMaxMessageRate,
+                Protocol1StartMaxDataItems,
+                messageId);
+
+            await _transport.SendAsync(frame, codec.FrameType, endOfMessage: true, ct).ConfigureAwait(false);
+            _channelStreamingProtocolStarted = true;
+        }
+        finally
+        {
+            _channelStreamingStartLock.Release();
+        }
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

@@ -12,6 +12,39 @@ namespace EtpClient.UnitTests.Protocol;
 /// </summary>
 public sealed class ChannelStreamingSessionCodecTests
 {
+    [Fact]
+    public void Binary_EncodeChannelStreamingProtocolStart_HeaderHasProtocol1AndType0()
+    {
+        var codec = new BinaryEtpSessionCodec();
+        var frame = codec.EncodeChannelStreamingProtocolStart(maxMessageRate: 1, maxDataItems: 2048, messageId: 1L);
+        var header = codec.DecodeHeader(frame);
+
+        Assert.Equal(EtpProtocol.ChannelStreaming, header.Protocol);
+        Assert.Equal(EtpChannelStreamingMessageType.Start, header.MessageType);
+        Assert.Equal(1L, header.MessageId);
+
+        var reader = new AvroReader(frame);
+        _ = EtpMessageHeader.ReadFrom(reader);
+        Assert.Equal(1, reader.ReadInt());
+        Assert.Equal(2048, reader.ReadInt());
+    }
+
+    [Fact]
+    public void Json_EncodeChannelStreamingProtocolStart_ProducesValidJsonWithProtocol1()
+    {
+        var codec = new JsonEtpSessionCodec();
+        var frame = codec.EncodeChannelStreamingProtocolStart(maxMessageRate: 1, maxDataItems: 1024, messageId: 2L);
+
+        var json = System.Text.Encoding.UTF8.GetString(frame.Span);
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        Assert.Equal(EtpProtocol.ChannelStreaming, root[0].GetProperty("protocol").GetInt32());
+        Assert.Equal(EtpChannelStreamingMessageType.Start, root[0].GetProperty("messageType").GetInt32());
+        Assert.Equal(1, root[1].GetProperty("maxMessageRate").GetInt32());
+        Assert.Equal(1024, root[1].GetProperty("maxDataItems").GetInt32());
+    }
+
     // ── T009 [US1]: ChannelDescribe encode ──────────────────────────────────
 
     [Fact]
@@ -202,6 +235,59 @@ public sealed class ChannelStreamingSessionCodecTests
         Assert.Single(items);
         Assert.Equal(1L, items[0].ChannelId);
         Assert.Equal(1000L, items[0].Indexes[0]);
+    }
+
+    [Fact]
+    public void Binary_DecodeChannelData_WithValueAttributes_DecodesWithoutMisalignment()
+    {
+        var frame = BuildBinaryChannelDataFrameWithAttributes(
+            indexes: [1000L],
+            channelId: 1L,
+            value: 3.14,
+            attributeId: 42,
+            attributeValue: "quality");
+        var codec = new BinaryEtpSessionCodec();
+
+        var (_, items) = codec.DecodeChannelData(frame);
+
+        Assert.Single(items);
+        Assert.Equal(1L, items[0].ChannelId);
+        Assert.Equal(1000L, items[0].Indexes[0]);
+        Assert.Equal(3.14, Assert.IsType<double>(items[0].Value), 6);
+    }
+
+    [Fact]
+    public void Binary_DecodeChannelData_WithLegacyNamedValueAttributes_DecodesWithoutMisalignment()
+    {
+        var frame = BuildBinaryChannelDataFrameWithLegacyAttributes(
+            indexes: [1001L],
+            channelId: 3L,
+            value: 4.14,
+            attributeName: "quality",
+            attributeValue: "good");
+        var codec = new BinaryEtpSessionCodec();
+
+        var (_, items) = codec.DecodeChannelData(frame);
+
+        Assert.Single(items);
+        Assert.Equal(3L, items[0].ChannelId);
+        Assert.Equal(1001L, items[0].Indexes[0]);
+        Assert.Equal(4.14, Assert.IsType<double>(items[0].Value), 6);
+    }
+
+    [Fact]
+    public void Binary_DecodeChannelData_VectorValue_ReturnsDoubleArray()
+    {
+        var frame = BuildBinaryChannelDataFrameWithVector(
+            indexes: [2000L],
+            channelId: 2L,
+            values: [1.5, 2.5]);
+        var codec = new BinaryEtpSessionCodec();
+
+        var (_, items) = codec.DecodeChannelData(frame);
+
+        var vector = Assert.IsType<double[]>(Assert.Single(items).Value);
+        Assert.Equal([1.5, 2.5], vector);
     }
 
     [Fact]
@@ -490,6 +576,101 @@ public sealed class ChannelStreamingSessionCodecTests
             // valueAttributes: empty array
             w.WriteArrayEnd();
         }
+        w.WriteArrayEnd();
+
+        return w.ToArray();
+    }
+
+    private static ReadOnlyMemory<byte> BuildBinaryChannelDataFrameWithAttributes(
+        long[] indexes,
+        long channelId,
+        double value,
+        int attributeId,
+        string attributeValue)
+    {
+        var w = new AvroWriter();
+        var header = new EtpMessageHeader(
+            Protocol: EtpProtocol.ChannelStreaming,
+            MessageType: EtpChannelStreamingMessageType.ChannelData,
+            CorrelationId: 0L,
+            MessageId: 99L,
+            MessageFlags: EtpMessageFlags.FinalPart);
+        header.WriteTo(w);
+
+        w.WriteArrayStart(1);
+        w.WriteArrayStart(indexes.Length);
+        foreach (var index in indexes) w.WriteLong(index);
+        w.WriteArrayEnd();
+        w.WriteLong(channelId);
+        w.WriteLong(1L);
+        w.WriteDouble(value);
+        w.WriteArrayStart(1);
+        w.WriteInt(attributeId);
+        w.WriteLong(5L);
+        w.WriteString(attributeValue);
+        w.WriteArrayEnd();
+        w.WriteArrayEnd();
+
+        return w.ToArray();
+    }
+
+    private static ReadOnlyMemory<byte> BuildBinaryChannelDataFrameWithLegacyAttributes(
+        long[] indexes,
+        long channelId,
+        double value,
+        string attributeName,
+        string attributeValue)
+    {
+        var w = new AvroWriter();
+        var header = new EtpMessageHeader(
+            Protocol: EtpProtocol.ChannelStreaming,
+            MessageType: EtpChannelStreamingMessageType.ChannelData,
+            CorrelationId: 0L,
+            MessageId: 101L,
+            MessageFlags: EtpMessageFlags.FinalPart);
+        header.WriteTo(w);
+
+        w.WriteArrayStart(1);
+        w.WriteArrayStart(indexes.Length);
+        foreach (var index in indexes) w.WriteLong(index);
+        w.WriteArrayEnd();
+        w.WriteLong(channelId);
+        w.WriteLong(1L);
+        w.WriteDouble(value);
+        w.WriteArrayStart(1);
+        w.WriteString(attributeName);
+        w.WriteLong(5L);
+        w.WriteString(attributeValue);
+        w.WriteArrayEnd();
+        w.WriteArrayEnd();
+
+        return w.ToArray();
+    }
+
+    private static ReadOnlyMemory<byte> BuildBinaryChannelDataFrameWithVector(
+        long[] indexes,
+        long channelId,
+        double[] values)
+    {
+        var w = new AvroWriter();
+        var header = new EtpMessageHeader(
+            Protocol: EtpProtocol.ChannelStreaming,
+            MessageType: EtpChannelStreamingMessageType.ChannelData,
+            CorrelationId: 0L,
+            MessageId: 100L,
+            MessageFlags: EtpMessageFlags.FinalPart);
+        header.WriteTo(w);
+
+        w.WriteArrayStart(1);
+        w.WriteArrayStart(indexes.Length);
+        foreach (var index in indexes) w.WriteLong(index);
+        w.WriteArrayEnd();
+        w.WriteLong(channelId);
+        w.WriteLong(6L);
+        w.WriteArrayStart(values.Length);
+        foreach (var item in values) w.WriteDouble(item);
+        w.WriteArrayEnd();
+        w.WriteArrayEnd();
         w.WriteArrayEnd();
 
         return w.ToArray();

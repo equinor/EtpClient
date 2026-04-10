@@ -14,6 +14,18 @@ internal sealed class AvroReader
 
     public AvroReader(ReadOnlyMemory<byte> data) => _data = data;
 
+    /// <summary>Gets the current read position for speculative parsing.</summary>
+    public int Position => _pos;
+
+    /// <summary>Restores the current read position after speculative parsing.</summary>
+    public void Reset(int position)
+    {
+        if (position < 0 || position > _data.Length)
+            throw new ArgumentOutOfRangeException(nameof(position));
+
+        _pos = position;
+    }
+
     // ── int ───────────────────────────────────────────────────────────────────
 
     /// <summary>Reads an Avro int (zigzag + base-128 variable-length).</summary>
@@ -38,6 +50,7 @@ internal sealed class AvroReader
     /// <summary>Reads an Avro double (8 bytes, little-endian IEEE 754).</summary>
     public double ReadDouble()
     {
+        EnsureAvailable(8);
         var bytes = _data.Span.Slice(_pos, 8).ToArray();
         _pos += 8;
         if (!BitConverter.IsLittleEndian)
@@ -48,6 +61,7 @@ internal sealed class AvroReader
     /// <summary>Reads an Avro float (4 bytes, little-endian IEEE 754).</summary>
     public float ReadFloat()
     {
+        EnsureAvailable(4);
         var bytes = _data.Span.Slice(_pos, 4).ToArray();
         _pos += 4;
         if (!BitConverter.IsLittleEndian)
@@ -62,6 +76,7 @@ internal sealed class AvroReader
     {
         var count = (int)ReadLong();
         if (count == 0) return string.Empty;
+        EnsureAvailable(count);
         var span = _data.Span.Slice(_pos, count);
         _pos += count;
         return Encoding.UTF8.GetString(span);
@@ -74,6 +89,7 @@ internal sealed class AvroReader
     {
         var count = (int)ReadLong();
         if (count == 0) return [];
+        EnsureAvailable(count);
         var result = _data.Span.Slice(_pos, count).ToArray();
         _pos += count;
         return result;
@@ -84,6 +100,7 @@ internal sealed class AvroReader
     /// <summary>Reads exactly <paramref name="length"/> bytes (no length prefix).</summary>
     public byte[] ReadFixed(int length)
     {
+        EnsureAvailable(length);
         var result = _data.Span.Slice(_pos, length).ToArray();
         _pos += length;
         return result;
@@ -94,9 +111,24 @@ internal sealed class AvroReader
     /// <summary>Reads an Avro boolean (single byte).</summary>
     public bool ReadBool()
     {
+        EnsureAvailable(1);
         var value = _data.Span[_pos] != 0;
         _pos++;
         return value;
+    }
+
+    /// <summary>Reads an Avro array of doubles wrapped in the ETP ArrayOfDouble record.</summary>
+    public double[] ReadArrayOfDouble()
+    {
+        var values = new List<double>();
+        long count;
+        while ((count = ReadBlockCount()) != 0)
+        {
+            for (long i = 0; i < count; i++)
+                values.Add(ReadDouble());
+        }
+
+        return values.ToArray();
     }
 
     // ── array / map blocks ────────────────────────────────────────────────────
@@ -123,6 +155,7 @@ internal sealed class AvroReader
     public void SkipString()
     {
         var count = (int)ReadLong();
+        EnsureAvailable(count);
         _pos += count;
     }
 
@@ -139,6 +172,7 @@ internal sealed class AvroReader
     public void SkipBytes()
     {
         var count = (int)ReadLong();
+        EnsureAvailable(count);
         _pos += count;
     }
 
@@ -157,9 +191,11 @@ internal sealed class AvroReader
             case 0:  // null — no bytes
                 break;
             case 1:  // double
+                EnsureAvailable(8);
                 _pos += 8;
                 break;
             case 2:  // float
+                EnsureAvailable(4);
                 _pos += 4;
                 break;
             case 3:  // int
@@ -172,7 +208,7 @@ internal sealed class AvroReader
                 SkipString();
                 break;
             case 6:  // vector (ArrayOfDouble)
-                SkipBytes();
+                ReadArrayOfDouble();
                 break;
             case 7:  // boolean
                 SkipBool();
@@ -181,7 +217,7 @@ internal sealed class AvroReader
                 SkipBytes();
                 break;
             default:
-                throw new InvalidOperationException($"Unsupported DataValue union index {index} while skipping protocolCapabilities.");
+                throw new InvalidOperationException($"Unsupported DataValue union index {index}.");
         }
     }
 
@@ -217,6 +253,7 @@ internal sealed class AvroReader
         var span = _data.Span;
         do
         {
+            EnsureAvailable(1);
             b = span[_pos++];
             result |= (uint)(b & 0x7F) << shift;
             shift += 7;
@@ -232,10 +269,17 @@ internal sealed class AvroReader
         var span = _data.Span;
         do
         {
+            EnsureAvailable(1);
             b = span[_pos++];
             result |= (ulong)(b & 0x7F) << shift;
             shift += 7;
         } while ((b & 0x80) != 0);
         return result;
+    }
+
+    private void EnsureAvailable(int length)
+    {
+        if (length < 0 || _pos + length > _data.Length)
+            throw new InvalidOperationException("Unexpected end of Avro payload while decoding ETP message.");
     }
 }

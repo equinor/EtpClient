@@ -47,10 +47,10 @@ internal static class ChannelDataMessage
                     3 => (object)r.ReadInt(),
                     4 => (object)r.ReadLong(),
                     5 => (object)r.ReadString(),
-                    6 => (object)SkipAndReturnNull(r, 8 * (int)r.ReadLong()), // ArrayOfDouble: count + doubles
+                    6 => r.ReadArrayOfDouble(),
                     7 => (object)r.ReadBool(),
                     8 => (object)r.ReadBytes(),
-                    _ => SkipUnknownUnionAndReturnNull(r),
+                    _ => throw new InvalidOperationException($"Unsupported ChannelData DataValue union index {valIdx}.")
                 };
 
                 // valueAttributes: array<DataAttribute> — skip all
@@ -118,13 +118,19 @@ internal static class ChannelDataMessage
         {
             for (long i = 0; i < count; i++)
             {
-                r.SkipString();        // name
-                r.SkipDataValue();     // value
+                var attributeStart = r.Position;
+                try
+                {
+                    r.SkipInt();       // attributeId (spec-compliant shape)
+                    r.SkipDataValue(); // attributeValue
+                }
+                catch (InvalidOperationException)
+                {
+                    r.Reset(attributeStart);
+                    r.SkipString();    // name (legacy producer shape)
+                    r.SkipDataValue(); // value
+                }
             }
         }
     }
-
-    private static object? SkipAndReturnNull(AvroReader r, int bytesToSkip) => null;
-
-    private static object? SkipUnknownUnionAndReturnNull(AvroReader r) => null;
 }

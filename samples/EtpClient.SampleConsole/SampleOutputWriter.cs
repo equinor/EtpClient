@@ -1,3 +1,5 @@
+using EtpClient.Models;
+
 namespace EtpClient.SampleConsole;
 
 /// <summary>
@@ -135,6 +137,24 @@ public sealed class SampleOutputWriter
         _out.WriteLine();
     }
 
+    /// <summary>Writes one line per streamed data item as it arrives.</summary>
+    public void WriteLiveData(
+        IReadOnlyList<ChannelDataItem> items,
+        IReadOnlyDictionary<long, ChannelDefinition> channelsById)
+    {
+        foreach (var item in items)
+        {
+            var index = item.Indexes.Count == 0
+                ? "(no index)"
+                : string.Join(", ", item.Indexes);
+            var name = channelsById.TryGetValue(item.ChannelId, out var channel)
+                ? channel.ChannelName
+                : $"Channel {item.ChannelId}";
+
+            _out.WriteLine($"{index}  {name}  {FormatValue(item.Value)}");
+        }
+    }
+
     /// <summary>Writes a channel range result summary to stdout.</summary>
     public void WriteChannelRange(SampleRunOutcome outcome)
     {
@@ -152,4 +172,12 @@ public sealed class SampleOutputWriter
         _out.WriteLine("============================");
         _out.WriteLine();
     }
+
+    private static string FormatValue(object? value) => value switch
+    {
+        null => "(null)",
+        double[] doubles => string.Join(", ", doubles),
+        byte[] bytes => Convert.ToHexString(bytes),
+        _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+    };
 }

@@ -150,13 +150,110 @@ public sealed class SampleConsoleRunnerChannelStreamingTests
             Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task RunAsync_DescribedChannelsAreClosedOrInvalid_SkipsLiveStreaming()
+    {
+        var connResult = SampleTestData.ConnectionResult(supportedProtocols:
+        [
+            new SupportedProtocol(1, ProtocolVersion.Etp11, "producer"),
+        ]);
+
+        var connector = Substitute.For<IEtpConnector>();
+        connector.ConnectAsync(Arg.Any<EtpConnectionOptions>(), Arg.Any<CancellationToken>())
+            .Returns(connResult);
+        connector.DescribeChannelsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(CreateDescriptionResult(
+                ["eml://witsml14/well(abc)/log(L1)//logcurveinfo(RPM)"],
+                channelId: -1L,
+                status: "Closed"));
+
+        var capture = new TestOutputCapture();
+        var options = SampleTestData.ValidOptions();
+        options.ChannelUri = "eml://witsml14/well(abc)/log(L1)//logcurveinfo(RPM)";
+        var runner = CreateRunner(options, () => connector, capture);
+
+        var outcome = await runner.RunAsync();
+
+        Assert.True(outcome.Succeeded);
+        Assert.NotNull(outcome.ChannelDescriptionResult);
+        Assert.Null(outcome.LiveStreamingResult);
+        connector.DidNotReceive().StartChannelStreamingAsync(
+            Arg.Any<IReadOnlyList<ChannelSubscriptionInfo>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RunAsync_DescribedChannelsAreClosedOrInvalid_SkipsChannelRangeRequest()
+    {
+        var connResult = SampleTestData.ConnectionResult(supportedProtocols:
+        [
+            new SupportedProtocol(1, ProtocolVersion.Etp11, "producer"),
+        ]);
+
+        var connector = Substitute.For<IEtpConnector>();
+        connector.ConnectAsync(Arg.Any<EtpConnectionOptions>(), Arg.Any<CancellationToken>())
+            .Returns(connResult);
+        connector.DescribeChannelsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(CreateDescriptionResult(
+                ["eml://witsml14/well(abc)/log(L1)//logcurveinfo(RPM)"],
+                channelId: -1L,
+                status: "Closed"));
+
+        var capture = new TestOutputCapture();
+        var options = SampleTestData.ValidOptions();
+        options.ChannelUri = "eml://witsml14/well(abc)/log(L1)//logcurveinfo(RPM)";
+        options.ChannelRangeFromIndex = 1L;
+        options.ChannelRangeToIndex = 10L;
+        var runner = CreateRunner(options, () => connector, capture);
+
+        var outcome = await runner.RunAsync();
+
+        Assert.True(outcome.Succeeded);
+        Assert.Null(outcome.ChannelRangeResult);
+        await connector.DidNotReceive().RequestChannelRangeAsync(
+            Arg.Any<ChannelRangeRequestModel>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RunAsync_LiveDataArrives_PrintsIndexNameAndValue()
+    {
+        var connResult = SampleTestData.ConnectionResult(supportedProtocols:
+        [
+            new SupportedProtocol(1, ProtocolVersion.Etp11, "producer"),
+        ]);
+
+        var connector = Substitute.For<IEtpConnector>();
+        connector.ConnectAsync(Arg.Any<EtpConnectionOptions>(), Arg.Any<CancellationToken>())
+            .Returns(connResult);
+        connector.DescribeChannelsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(CreateDescriptionResult(["eml://witsml14/well(abc)/log(L1)"], channelId: 11L));
+        connector.StartChannelStreamingAsync(Arg.Any<IReadOnlyList<ChannelSubscriptionInfo>>(), Arg.Any<CancellationToken>())
+            .Returns(CreateLiveEvents());
+
+        var capture = new TestOutputCapture();
+        var options = SampleTestData.ValidOptions();
+        options.ChannelUri = "eml://witsml14/well(abc)/log(L1)";
+        var runner = CreateRunner(options, () => connector, capture);
+
+        var outcome = await runner.RunAsync();
+
+        Assert.True(outcome.Succeeded);
+        Assert.Contains("1000", capture.Out);
+        Assert.Contains("CH1", capture.Out);
+        Assert.Contains("12.5", capture.Out);
+    }
+
     // ── factory helpers ───────────────────────────────────────────────────────
 
-    private static ChannelDescriptionResult CreateDescriptionResult(IReadOnlyList<string> requestedUris)
+    private static ChannelDescriptionResult CreateDescriptionResult(
+        IReadOnlyList<string> requestedUris,
+        long channelId = 1L,
+        string status = "Active")
     {
         var channels = requestedUris.Select((uri, i) => new ChannelDefinition
         {
-            ChannelId = i + 1L,
+            ChannelId = channelId + i,
             ChannelUri = uri + "/channel(CH1)",
             ChannelName = $"CH{i + 1}",
             DataType = "double",
@@ -165,7 +262,7 @@ public sealed class SampleConsoleRunnerChannelStreamingTests
             IndexUom = "ms",
             IndexDirection = "Increasing",
             Description = "",
-            Status = "Active",
+            Status = status,
             Source = "test",
             MeasureClass = "",
         }).ToList();
@@ -190,5 +287,22 @@ public sealed class SampleConsoleRunnerChannelStreamingTests
     {
         await Task.Delay(Timeout.InfiniteTimeSpan, ct);
         throw new InvalidOperationException("Unreachable");
+    }
+
+    private static async IAsyncEnumerable<ChannelEvent> CreateLiveEvents()
+    {
+        yield return new ChannelEvent
+        {
+            Kind = ChannelEventKind.Data,
+            DataItems = [new ChannelDataItem { Indexes = [1000L], ChannelId = 11L, Value = 12.5 }],
+        };
+
+        yield return new ChannelEvent
+        {
+            Kind = ChannelEventKind.Remove,
+            ChannelId = 11L,
+        };
+
+        await Task.CompletedTask;
     }
 }

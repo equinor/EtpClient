@@ -71,6 +71,14 @@ public sealed class AvroEncodingTests
         Assert.Equal(data, r.ReadBytes());
     }
 
+    [Fact]
+    public void ReadLong_TruncatedPayload_ThrowsInvalidOperationException()
+    {
+        var reader = new AvroReader(new byte[] { 0x80 });
+        var ex = Assert.Throws<InvalidOperationException>(() => reader.ReadLong());
+        Assert.Contains("Unexpected end of Avro payload", ex.Message);
+    }
+
     // ── fixed ─────────────────────────────────────────────────────────────────
 
     [Fact]

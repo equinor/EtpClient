@@ -293,8 +293,12 @@ public sealed class EtpChannelStreamingException : Exception
     /// Constructs a new <see cref="EtpChannelStreamingException"/>.
     /// Do NOT include credential values in <paramref name="message"/>.
     /// </summary>
-    public EtpChannelStreamingException(string message, string requestedTarget, int? etpErrorCode = null)
-        : base(message)
+    public EtpChannelStreamingException(
+        string message,
+        string requestedTarget,
+        int? etpErrorCode = null,
+        Exception? innerException = null)
+        : base(message, innerException)
     {
         RequestedTarget = requestedTarget;
         EtpErrorCode = etpErrorCode;

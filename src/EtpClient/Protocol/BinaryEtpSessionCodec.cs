@@ -47,6 +47,12 @@ internal sealed class BinaryEtpSessionCodec : IEtpSessionCodec
 
     // ── Protocol 1 (ChannelStreaming) ────────────────────────────────────────
 
+    public ReadOnlyMemory<byte> EncodeChannelStreamingProtocolStart(
+        int maxMessageRate,
+        int maxDataItems,
+        long messageId)
+        => ChannelStreamingProtocolStartMessage.EncodeBinaryFrame(maxMessageRate, maxDataItems, messageId);
+
     public ReadOnlyMemory<byte> EncodeChannelDescribe(IReadOnlyList<string> uris, long messageId)
         => ChannelDescribeMessage.EncodeBinaryFrame(uris, messageId);
 
