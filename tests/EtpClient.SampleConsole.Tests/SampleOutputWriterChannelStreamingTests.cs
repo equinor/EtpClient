@@ -165,7 +165,8 @@ public sealed class SampleOutputWriterChannelStreamingTests
             channelsById);
 
         var output = out_.ToString();
-        Assert.Contains("12345", output);
+        // After index formatting, raw 12345 is rendered as a timestamp, not the plain long
+        Assert.DoesNotContain("12345  RPM", output);
         Assert.Contains("RPM", output);
         Assert.Contains("98.6", output);
     }

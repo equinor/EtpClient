@@ -476,6 +476,12 @@ internal sealed class JsonEtpSessionCodec : IEtpSessionCodec
         var indexType = "Time";
         var indexUom = string.Empty;
         var indexDirection = "Increasing";
+        var indexScale = 0;
+        string? indexTimeDatum = null;
+        string? indexDepthDatum = null;
+        string? indexMnemonic = null;
+        string? indexDescription = null;
+
         if (ch.TryGetProperty("indexes", out var indexesEl) &&
             indexesEl.GetArrayLength() > 0)
         {
@@ -486,6 +492,26 @@ internal sealed class JsonEtpSessionCodec : IEtpSessionCodec
                 ? uomEl.GetString() ?? string.Empty : string.Empty;
             indexDirection = ReadEnumString(idx, "direction",
                 new[] { "Increasing", "Decreasing" }, defaultValue: "Increasing");
+
+            if (idx.TryGetProperty("scale", out var scaleEl) &&
+                scaleEl.ValueKind == JsonValueKind.Number)
+                indexScale = scaleEl.GetInt32();
+
+            if (idx.TryGetProperty("timeDatum", out var tdEl) &&
+                tdEl.ValueKind == JsonValueKind.String)
+                indexTimeDatum = tdEl.GetString();
+
+            if (idx.TryGetProperty("depthDatum", out var ddEl) &&
+                ddEl.ValueKind == JsonValueKind.String)
+                indexDepthDatum = ddEl.GetString();
+
+            if (idx.TryGetProperty("mnemonic", out var mnEl) &&
+                mnEl.ValueKind == JsonValueKind.String)
+                indexMnemonic = mnEl.GetString();
+
+            if (idx.TryGetProperty("description", out var descIdxEl) &&
+                descIdxEl.ValueKind == JsonValueKind.String)
+                indexDescription = descIdxEl.GetString();
         }
 
         long? startIndex = null;
@@ -518,6 +544,11 @@ internal sealed class JsonEtpSessionCodec : IEtpSessionCodec
             IndexType = indexType,
             IndexUom = indexUom,
             IndexDirection = indexDirection,
+            IndexScale = indexScale,
+            IndexTimeDatum = indexTimeDatum,
+            IndexDepthDatum = indexDepthDatum,
+            IndexMnemonic = indexMnemonic,
+            IndexDescription = indexDescription,
             StartIndex = startIndex,
             EndIndex = endIndex,
             Description = ch.TryGetProperty("description", out var descEl)

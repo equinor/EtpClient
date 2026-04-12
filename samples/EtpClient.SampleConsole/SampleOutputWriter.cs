@@ -144,14 +144,12 @@ public sealed class SampleOutputWriter
     {
         foreach (var item in items)
         {
-            var index = item.Indexes.Count == 0
-                ? "(no index)"
-                : string.Join(", ", item.Indexes);
+            var indexText = FormatPrimaryIndex(item, channelsById);
             var name = channelsById.TryGetValue(item.ChannelId, out var channel)
                 ? channel.ChannelName
                 : $"Channel {item.ChannelId}";
 
-            _out.WriteLine($"{index}  {name}  {FormatValue(item.Value)}");
+            _out.WriteLine($"{indexText}  {name}  {FormatValue(item.Value)}");
         }
     }
 
@@ -169,9 +167,74 @@ public sealed class SampleOutputWriter
         _out.WriteLine($"  Samples  : {range.Samples.Count}");
         _out.WriteLine($"  Multipart: {range.WasMultipart}");
         _out.WriteLine($"  State    : {range.State}");
+
+        if (range.Samples.Count > 0)
+        {
+            // Build channel lookup from description result if available
+            var channelsById = BuildChannelsById(outcome);
+            _out.WriteLine("  --- Samples ---");
+            foreach (var item in range.Samples)
+            {
+                var indexText = FormatPrimaryIndex(item, channelsById);
+                var name = channelsById.TryGetValue(item.ChannelId, out var ch)
+                    ? ch.ChannelName
+                    : $"Channel {item.ChannelId}";
+                _out.WriteLine($"    {indexText}  {name}  {FormatValue(item.Value)}");
+            }
+        }
+
         _out.WriteLine("============================");
         _out.WriteLine();
     }
+
+    private static IReadOnlyDictionary<long, ChannelDefinition> BuildChannelsById(SampleRunOutcome outcome)
+    {
+        if (outcome.ChannelDescriptionResult is { Channels.Count: > 0 })
+            return outcome.ChannelDescriptionResult.Channels.ToDictionary(c => c.ChannelId);
+        return new Dictionary<long, ChannelDefinition>();
+    }
+
+    private static string FormatPrimaryIndex(
+        ChannelDataItem item,
+        IReadOnlyDictionary<long, ChannelDefinition> channelsById)
+    {
+        if (item.Indexes.Count == 0)
+            return "(no index)";
+
+        var rawValue = item.Indexes[0];
+
+        if (!channelsById.TryGetValue(item.ChannelId, out var channel))
+            return rawValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        var interpreted = ChannelIndexValueConverter.Interpret(rawValue, channel);
+        return interpreted.Kind switch
+        {
+            ChannelIndexKind.Time => FormatTimeIndex(interpreted),
+            ChannelIndexKind.Depth => FormatDepthIndex(interpreted),
+            _ => FormatFallbackIndex(interpreted),
+        };
+    }
+
+    private static string FormatTimeIndex(InterpretedChannelIndex interpreted)
+    {
+        if (interpreted.UtcTimestamp is null)
+            return interpreted.RawValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        // Convert to local time at the sample boundary
+        var local = interpreted.UtcTimestamp.Value.ToLocalTime();
+        return local.ToString("yyyy-MM-dd HH:mm:ss.fff", System.Globalization.CultureInfo.CurrentCulture);
+    }
+
+    private static string FormatDepthIndex(InterpretedChannelIndex interpreted)
+    {
+        if (interpreted.ScaledDepthValue is null)
+            return interpreted.RawValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var unit = string.IsNullOrEmpty(interpreted.DisplayUnit) ? string.Empty : interpreted.DisplayUnit;
+        return $"{interpreted.ScaledDepthValue.Value.ToString("0.##", System.Globalization.CultureInfo.CurrentCulture)}{unit}";
+    }
+
+    private static string FormatFallbackIndex(InterpretedChannelIndex interpreted) =>
+        interpreted.FallbackValue
+        ?? interpreted.RawValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private static string FormatValue(object? value) => value switch
     {

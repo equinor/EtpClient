@@ -43,7 +43,8 @@ internal static class ChannelMetadataMessage
         var channelId   = r.ReadLong();
 
         // indexes: array<IndexMetadataRecord>
-        var (indexType, indexUom, indexDirection) = ReadPrimaryIndexMetadata(r);
+        var (indexType, indexUom, indexDirection, indexScale, indexTimeDatum, indexDepthDatum, indexMnemonic, indexDescription)
+            = ReadPrimaryIndexMetadata(r);
 
         var channelName = r.ReadString();
         var dataType    = r.ReadString();
@@ -95,6 +96,11 @@ internal static class ChannelMetadataMessage
             IndexType       = indexType,
             IndexUom        = indexUom,
             IndexDirection  = indexDirection,
+            IndexScale      = indexScale,
+            IndexTimeDatum  = indexTimeDatum,
+            IndexDepthDatum = indexDepthDatum,
+            IndexMnemonic   = indexMnemonic,
+            IndexDescription = indexDescription,
             StartIndex      = startIndex,
             EndIndex        = endIndex,
             Description     = description,
@@ -106,13 +112,23 @@ internal static class ChannelMetadataMessage
         };
     }
 
-    /// <summary>Reads the indexes array and returns the primary index type/uom/direction.</summary>
-    private static (string IndexType, string IndexUom, string IndexDirection) ReadPrimaryIndexMetadata(
-        AvroReader r)
+    /// <summary>
+    /// Reads the indexes array and returns primary-index metadata including
+    /// scale, timeDatum, depthDatum, mnemonic, and description.
+    /// </summary>
+    private static (string IndexType, string IndexUom, string IndexDirection,
+                    int Scale, string? TimeDatum, string? DepthDatum,
+                    string? Mnemonic, string? Description)
+        ReadPrimaryIndexMetadata(AvroReader r)
     {
         var indexType      = "Time";
         var indexUom       = string.Empty;
         var indexDirection = "Increasing";
+        var scale          = 0;
+        string? timeDatum  = null;
+        string? depthDatum = null;
+        string? mnemonic   = null;
+        string? description = null;
 
         var first = true;
         long count;
@@ -120,46 +136,61 @@ internal static class ChannelMetadataMessage
         {
             for (long i = 0; i < count; i++)
             {
-                // IndexMetadataRecord fields:
+                // IndexMetadataRecord fields (ETP v1.1 spec §3.3.16.8):
                 // indexType(enum), uom(string), depthDatum(null|string),
                 // direction(enum), mnemonic(null|string), description(null|string),
                 // uri(null|string), customData(map<DataValue>), scale(int), timeDatum(null|string)
                 var itIdx = (int)r.ReadLong(); // enum indexType
                 var uom   = r.ReadString();
+
                 // depthDatum: null|string
+                string? dd = null;
                 var ddUnion = r.ReadLong();
-                if (ddUnion != 0L) r.SkipString();
+                if (ddUnion != 0L) dd = r.ReadString();
+
                 var dirIdx = (int)r.ReadLong(); // enum direction
+
                 // mnemonic: null|string
+                string? mn = null;
                 var mnUnion = r.ReadLong();
-                if (mnUnion != 0L) r.SkipString();
+                if (mnUnion != 0L) mn = r.ReadString();
+
                 // description: null|string
+                string? desc = null;
                 var descUnion = r.ReadLong();
-                if (descUnion != 0L) r.SkipString();
+                if (descUnion != 0L) desc = r.ReadString();
+
                 // uri: null|string
                 var uriUnion = r.ReadLong();
                 if (uriUnion != 0L) r.SkipString();
+
                 // customData: map<DataValue>
                 SkipStringDataValueMap(r);
+
                 // scale: int
-                r.ReadInt();
+                var sc = r.ReadInt();
+
                 // timeDatum: null|string
+                string? td = null;
                 var tdUnion = r.ReadLong();
-                if (tdUnion != 0L) r.SkipString();
+                if (tdUnion != 0L) td = r.ReadString();
 
                 if (first)
                 {
-                    indexType = itIdx >= 0 && itIdx < IndexTypes.Length
-                        ? IndexTypes[itIdx] : "Time";
-                    indexUom  = uom;
-                    indexDirection = dirIdx >= 0 && dirIdx < Directions.Length
-                        ? Directions[dirIdx] : "Increasing";
+                    indexType      = itIdx >= 0 && itIdx < IndexTypes.Length ? IndexTypes[itIdx] : "Time";
+                    indexUom       = uom;
+                    indexDirection = dirIdx >= 0 && dirIdx < Directions.Length ? Directions[dirIdx] : "Increasing";
+                    scale          = sc;
+                    timeDatum      = td;
+                    depthDatum     = dd;
+                    mnemonic       = mn;
+                    description    = desc;
                     first = false;
                 }
                 // Subsequent indexes are ignored at this level
             }
         }
-        return (indexType, indexUom, indexDirection);
+        return (indexType, indexUom, indexDirection, scale, timeDatum, depthDatum, mnemonic, description);
     }
 
     /// <summary>Skips a map with string keys and DataValue values.</summary>

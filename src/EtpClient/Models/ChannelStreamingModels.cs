@@ -65,6 +65,29 @@ public sealed class ChannelDefinition
     /// <summary>Direction of the primary index: <c>Increasing</c> or <c>Decreasing</c>.</summary>
     public required string IndexDirection { get; init; }
 
+    /// <summary>
+    /// Power-of-ten scale factor for depth indexes.
+    /// A raw depth index value is divided by 10^<see cref="IndexScale"/> to obtain the physical depth.
+    /// Zero means no scaling.
+    /// </summary>
+    public int IndexScale { get; init; }
+
+    /// <summary>
+    /// Optional UTC datum for time indexes, as an ISO 8601 string.
+    /// When present, raw time index values are interpreted as microsecond offsets from this datum.
+    /// When absent, the Unix epoch (1970-01-01T00:00:00Z) is used.
+    /// </summary>
+    public string? IndexTimeDatum { get; init; }
+
+    /// <summary>Optional depth datum identifier or URI for depth indexes.</summary>
+    public string? IndexDepthDatum { get; init; }
+
+    /// <summary>Optional mnemonic for the primary index.</summary>
+    public string? IndexMnemonic { get; init; }
+
+    /// <summary>Optional human-readable description of the primary index.</summary>
+    public string? IndexDescription { get; init; }
+
     /// <summary>First recorded primary index value, when available.</summary>
     public long? StartIndex { get; init; }
 

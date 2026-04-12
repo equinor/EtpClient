@@ -239,7 +239,8 @@ public sealed class SampleConsoleRunnerChannelStreamingTests
         var outcome = await runner.RunAsync();
 
         Assert.True(outcome.Succeeded);
-        Assert.Contains("1000", capture.Out);
+        // After formatting, raw index 1000 is rendered as a timestamp, not the plain long
+        Assert.DoesNotContain("\n1000 ", capture.Out);
         Assert.Contains("CH1", capture.Out);
         Assert.Contains("12.5", capture.Out);
     }
