@@ -18,6 +18,19 @@ p{
             "console": "integratedTerminal"
         },
         {
+            "name": "EtpExplorer",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-etp-explorer",
+            "program": "${workspaceFolder}/samples/EtpExplorer/bin/Debug/net10.0/EtpExplorer.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/samples/EtpExplorer",
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            },
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Live Integration Tests",
             "type": "coreclr",
             "request": "launch",
