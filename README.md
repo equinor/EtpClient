@@ -20,6 +20,12 @@ The repository contains:
 - Request bounded historical ranges with `RequestChannelRangeAsync`.
 - Use either binary or JSON ETP message encoding.
 
+## Work in progress:
+
+- (CI) Automated builds in Github, including tests
+- (Sample) Complete the EtpExplorer sample application. This is an interactive console application for navigating a ETP server which supports streaming data to the console. This is still a bit rough in the edges
+- Publish a re-usable package of the library (nuget.org or github package repository) to make it easier to use in other projects
+
 ## Quick overview
 
 The typical flow is:
