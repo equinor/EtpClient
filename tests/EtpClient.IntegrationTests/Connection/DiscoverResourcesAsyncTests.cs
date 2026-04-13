@@ -180,9 +180,9 @@ public sealed class DiscoverResourcesAsyncTests : IDisposable
     private static EtpConnectionOptions ValidOptions() =>
         new(new Uri("ws://localhost/etp"), ValidUser, ValidPass);
 
-    private static global::EtpClient.EtpClient BuildClient(
+    private static EtpClient BuildClient(
         DiscoveryTestServer server) =>
-        new global::EtpClient.EtpClient(
+        new EtpClient(
             () => new TestServerTransport(server.TestServer),
             NullLogger.Instance);
 

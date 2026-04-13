@@ -91,7 +91,7 @@ public sealed class DescribeChannelsAsyncTests : IDisposable
     [Fact]
     public async Task DescribeChannelsAsync_NotConnected_ThrowsInvalidOperationException()
     {
-        await using var client = new global::EtpClient.EtpClient();
+        await using var client = new EtpClient();
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => client.DescribeChannelsAsync(["eml://witsml14/well(abc)"]));
     }
@@ -268,9 +268,9 @@ public sealed class DescribeChannelsAsyncTests : IDisposable
         return new ChannelDescribeTestServer(new TestServer(builder));
     }
 
-    private static global::EtpClient.EtpClient BuildClient(ChannelDescribeTestServer server)
+    private static EtpClient BuildClient(ChannelDescribeTestServer server)
     {
-        return new global::EtpClient.EtpClient(
+        return new EtpClient(
             transportFactory: () => new TestServerTransport(server.TestServer),
             logger: NullLogger.Instance);
     }

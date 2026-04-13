@@ -255,7 +255,7 @@ public sealed class DescribeChannelsAsyncIndexMetadataTests : IDisposable
         return w.ToArray();
     }
 
-    private static global::EtpClient.EtpClient BuildClient(IndexMetadataTestServer server) =>
+    private static EtpClient BuildClient(IndexMetadataTestServer server) =>
         new(transportFactory: () => new TestServerTransport(server.TestServer),
             logger: NullLogger.Instance);
 

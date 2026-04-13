@@ -22,7 +22,7 @@ public sealed class DiscoverResourcesStateTests
     {
         // Arrange: fresh client — never connected
         var transport = Substitute.For<IWebSocketTransport>();
-        await using var client = new global::EtpClient.EtpClient(
+        await using var client = new EtpClient(
             () => transport, NullLogger.Instance);
 
         // Act & Assert
@@ -37,7 +37,7 @@ public sealed class DiscoverResourcesStateTests
         var openFrame = BuildOpenSessionFrame();
         var transport = BuildSuccessTransport(openFrame);
 
-        await using var client = new global::EtpClient.EtpClient(
+        await using var client = new EtpClient(
             () => transport, NullLogger.Instance);
 
         var options = new EtpConnectionOptions(new Uri("wss://example.com/etp"), "user", "pass");
@@ -55,7 +55,7 @@ public sealed class DiscoverResourcesStateTests
         var openFrame = BuildOpenSessionFrame();
         var transport = BuildSuccessTransport(openFrame);
 
-        await using var client = new global::EtpClient.EtpClient(
+        await using var client = new EtpClient(
             () => transport, NullLogger.Instance);
 
         var options = new EtpConnectionOptions(new Uri("wss://example.com/etp"), "user", "pass");

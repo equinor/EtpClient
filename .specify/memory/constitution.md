@@ -1,9 +1,9 @@
 <!--
 Sync Impact Report
-Version change: 1.0.0 -> 1.0.1
+Version change: 1.0.2 -> 1.1.0
 Modified principles:
-- I. Protocol Fidelity First -> I. Protocol Fidelity First
-- Additional Constraints clarified to include the markdown protocol rendering
+- Additional Constraints clarified to require README updates when relevant features change public behavior or usage guidance
+- Delivery Workflow clarified to require README work in applicable task lists and reviews
 Added sections:
 - None
 Removed sections:
@@ -76,7 +76,15 @@ subscription usage. Dependencies SHOULD remain minimal and justified, especially
 networking, serialization, and logging. Protocol source material in the docs folder is the
 authoritative reference for message behavior. The markdown rendering may be used for search,
 annotation, and planning, but it MUST stay consistent with the PDF and may not contradict the
-PDF when defining or changing behavior.
+PDF when defining or changing behavior. C# implementations SHOULD avoid explicit `global::`
+alias usage unless disambiguation is genuinely required. New types SHOULD prefer primary
+constructors when they fit the design and improve clarity. xUnit tests SHOULD use
+`ITestOutputHelper` for diagnostic output instead of `Console.Write` or `Console.WriteLine`.
+Variables, constants, parameters, properties, and fields MUST follow standard C# naming
+conventions and remain compliant with Roslyn analyzers. Whenever a feature adds, changes, or
+removes user-visible behavior, setup steps, sample workflows, or client usage guidance, the
+root README.md MUST be reviewed and updated in the same change whenever the existing content is
+affected.
 
 ## Delivery Workflow
 
@@ -86,8 +94,10 @@ Implementation plans MUST pass a constitution check covering protocol fidelity, 
 credential handling, async API design, diagnostics, and test coverage before coding starts.
 Task lists MUST include the exact test work needed for unit and integration or contract
 coverage, plus any public API documentation or compatibility notes required by the change.
-Reviews MUST block merges that introduce undocumented protocol deviations, missing
-streaming-lifecycle semantics, or insufficient diagnostics.
+When a change affects user-visible capabilities, onboarding, sample usage, or documented client
+workflows, the task list MUST include README.md updates as explicit work. Reviews MUST block
+merges that introduce undocumented protocol deviations, missing streaming-lifecycle semantics,
+insufficient diagnostics, or required README.md changes that were omitted.
 
 ## Governance
 
@@ -100,4 +110,4 @@ and PATCH for clarifications that do not change enforcement. Every implementatio
 feature spec, task list, and code review MUST include an explicit compliance check against
 the current constitution version.
 
-**Version**: 1.0.1 | **Ratified**: 2026-04-09 | **Last Amended**: 2026-04-09
+**Version**: 1.1.0 | **Ratified**: 2026-04-09 | **Last Amended**: 2026-04-13

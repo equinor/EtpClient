@@ -1,5 +1,6 @@
 using EtpClient.Models;
 using Microsoft.Extensions.Logging;
+using Xunit.Abstractions;
 
 namespace EtpClient.IntegrationTests.Connection;
 
@@ -20,7 +21,7 @@ namespace EtpClient.IntegrationTests.Connection;
 /// Run only these tests:
 ///   dotnet test --filter "FullyQualifiedName~LiveConnectAsync"
 /// </summary>
-public sealed class LiveConnectAsyncTests
+public sealed class LiveConnectAsyncTests(ITestOutputHelper output)
 {
     /// <summary>
     /// Prefer user secrets; fall back to environment variables so CI pipelines
@@ -34,10 +35,10 @@ public sealed class LiveConnectAsyncTests
 
     private readonly LiveServerSettings _settings = ResolveSettings();
 
-    private global::EtpClient.EtpClient BuildClient()
+    private EtpClient BuildClient()
     {
         var loggerFactory = LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Trace));
-        return new global::EtpClient.EtpClient(loggerFactory.CreateLogger<global::EtpClient.EtpClient>());
+        return new EtpClient(loggerFactory.CreateLogger<EtpClient>());
     }
 
     // ── happy path ────────────────────────────────────────────────────────────
@@ -65,24 +66,21 @@ public sealed class LiveConnectAsyncTests
 
         var result = await client.ConnectAsync(_settings.ToConnectionOptions());
 
-        // Write diagnostics to xunit test output via exceptions rather than ITestOutputHelper
-        // so the details appear in the test failure message when something is unexpected.
         Assert.NotNull(result.Session.ServerApplicationName);
         Assert.NotNull(result.Session.ServerApplicationVersion);
         Assert.NotNull(result.Session.SupportedFormats);
         Assert.NotNull(result.Session.SupportedProtocols);
 
-        // Log session details — visible in verbose test output (dotnet test -v detailed)
-        Console.WriteLine($"[LiveTest] ServerApplicationName : {result.Session.ServerApplicationName}");
-        Console.WriteLine($"[LiveTest] ServerApplicationVersion: {result.Session.ServerApplicationVersion}");
-        Console.WriteLine($"[LiveTest] ServerInstanceId       : {result.Session.ServerInstanceId}");
-        Console.WriteLine($"[LiveTest] SupportedFormats       : {string.Join(", ", result.Session.SupportedFormats)}");
-        Console.WriteLine($"[LiveTest] SupportedProtocols     : {result.Session.SupportedProtocols.Count} protocol(s)");
+        output.WriteLine($"[LiveTest] ServerApplicationName : {result.Session.ServerApplicationName}");
+        output.WriteLine($"[LiveTest] ServerApplicationVersion: {result.Session.ServerApplicationVersion}");
+        output.WriteLine($"[LiveTest] ServerInstanceId       : {result.Session.ServerInstanceId}");
+        output.WriteLine($"[LiveTest] SupportedFormats       : {string.Join(", ", result.Session.SupportedFormats)}");
+        output.WriteLine($"[LiveTest] SupportedProtocols     : {result.Session.SupportedProtocols.Count} protocol(s)");
         foreach (var p in result.Session.SupportedProtocols)
-            Console.WriteLine($"[LiveTest]   Protocol {p.Protocol} v{p.Version} role={p.Role}");
-        Console.WriteLine($"[LiveTest] SupportedCompression   : '{result.Session.SupportedCompression}'");
-        Console.WriteLine($"[LiveTest] ConnectedAt (UTC)      : {result.ConnectedAtUtc:O}");
-        Console.WriteLine($"[LiveTest] EndpointHost           : {result.EndpointHost}");
+            output.WriteLine($"[LiveTest]   Protocol {p.Protocol} v{p.Version} role={p.Role}");
+        output.WriteLine($"[LiveTest] SupportedCompression   : '{result.Session.SupportedCompression}'");
+        output.WriteLine($"[LiveTest] ConnectedAt (UTC)      : {result.ConnectedAtUtc:O}");
+        output.WriteLine($"[LiveTest] EndpointHost           : {result.EndpointHost}");
     }
 
     // ── clean close ───────────────────────────────────────────────────────────
@@ -113,10 +111,10 @@ public sealed class LiveConnectAsyncTests
         var ex = await Assert.ThrowsAsync<EtpConnectionException>(
             () => client.ConnectAsync(badOptions));
 
-        Console.WriteLine($"[LiveTest] Category   : {ex.Category}");
-        Console.WriteLine($"[LiveTest] StatusCode  : {ex.HttpStatusCode}");
-        Console.WriteLine($"[LiveTest] EtpErrorCode: {ex.EtpErrorCode}");
-        Console.WriteLine($"[LiveTest] Message     : {ex.Message}");
+        output.WriteLine($"[LiveTest] Category   : {ex.Category}");
+        output.WriteLine($"[LiveTest] StatusCode  : {ex.HttpStatusCode}");
+        output.WriteLine($"[LiveTest] EtpErrorCode: {ex.EtpErrorCode}");
+        output.WriteLine($"[LiveTest] Message     : {ex.Message}");
 
         Assert.True(
             ex.Category is EtpConnectionFailureCategory.Authentication

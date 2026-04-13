@@ -114,7 +114,7 @@ public sealed class RequestChannelRangeAsyncTests : IDisposable
     [Fact]
     public async Task RequestChannelRangeAsync_NotConnected_ThrowsInvalidOperationException()
     {
-        await using var client = new global::EtpClient.EtpClient();
+        await using var client = new EtpClient();
         var request = new ChannelRangeRequestModel
         {
             ChannelIds = [1L],
@@ -235,9 +235,9 @@ public sealed class RequestChannelRangeAsyncTests : IDisposable
         return new RangeTestServer(new TestServer(builder));
     }
 
-    private static global::EtpClient.EtpClient BuildClient(RangeTestServer server)
+    private static EtpClient BuildClient(RangeTestServer server)
     {
-        return new global::EtpClient.EtpClient(
+        return new EtpClient(
             transportFactory: () => new TestServerTransport(server.TestServer),
             logger: NullLogger.Instance);
     }

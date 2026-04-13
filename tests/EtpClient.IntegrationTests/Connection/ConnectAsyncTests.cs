@@ -35,9 +35,9 @@ public sealed class ConnectAsyncTests : IDisposable
     /// <summary>
     /// Creates an EtpClient wired to the in-process test server transport.
     /// </summary>
-    private global::EtpClient.EtpClient BuildClient(ILogger? logger = null)
+    private EtpClient BuildClient(ILogger? logger = null)
     {
-        return new global::EtpClient.EtpClient(
+        return new EtpClient(
             () => new TestServerTransport(_server),
             logger ?? NullLogger.Instance);
     }

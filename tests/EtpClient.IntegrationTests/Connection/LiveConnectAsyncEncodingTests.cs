@@ -26,10 +26,10 @@ public sealed class LiveConnectAsyncEncodingTests
 
     private readonly LiveServerSettings _settings = ResolveSettings();
 
-    private global::EtpClient.EtpClient BuildClient()
+    private EtpClient BuildClient()
     {
         var loggerFactory = LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Debug));
-        return new global::EtpClient.EtpClient(loggerFactory.CreateLogger<global::EtpClient.EtpClient>());
+        return new EtpClient(loggerFactory.CreateLogger<EtpClient>());
     }
 
     // ── Binary encoding against live server ───────────────────────────────────

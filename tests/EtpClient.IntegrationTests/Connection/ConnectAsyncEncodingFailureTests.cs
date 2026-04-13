@@ -83,8 +83,8 @@ public sealed class ConnectAsyncEncodingFailureTests : IDisposable
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private global::EtpClient.EtpClient BuildClient(TestServer server) =>
-        new global::EtpClient.EtpClient(
+    private EtpClient BuildClient(TestServer server) =>
+        new EtpClient(
             () => new TestServerTransport(server),
             NullLogger.Instance);
 

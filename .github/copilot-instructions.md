@@ -88,4 +88,11 @@ C# with .NET 10: Follow standard conventions
 
 
 <!-- MANUAL ADDITIONS START -->
+## Manual Coding Conventions
+
+- Avoid explicit `global::` alias usage; prefer relative namespace resolution unless disambiguation is genuinely required.
+- Prefer primary constructors for new C# types when they fit the design and improve clarity.
+- In xUnit tests, use `ITestOutputHelper` for diagnostic output instead of `Console.Write` or `Console.WriteLine`.
+- Make variable, constant, parameter, property, and field names follow standard C# naming conventions and remain compliant with Roslyn analyzers.
+- When a feature changes user-visible behavior, setup, samples, or documented client workflows, update the root `README.md` in the same change whenever its guidance is affected.
 <!-- MANUAL ADDITIONS END -->

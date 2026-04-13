@@ -97,7 +97,7 @@ public sealed class StartChannelStreamingAsyncTests : IDisposable
     [Fact]
     public async Task StartChannelStreamingAsync_NotConnected_ThrowsInvalidOperationException()
     {
-        await using var client = new global::EtpClient.EtpClient();
+        await using var client = new EtpClient();
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
             await foreach (var _ in client.StartChannelStreamingAsync([])) { }
@@ -242,9 +242,9 @@ public sealed class StartChannelStreamingAsyncTests : IDisposable
         return new StreamingTestServer(new TestServer(builder));
     }
 
-    private static global::EtpClient.EtpClient BuildClient(StreamingTestServer server)
+    private static EtpClient BuildClient(StreamingTestServer server)
     {
-        return new global::EtpClient.EtpClient(
+        return new EtpClient(
             transportFactory: () => new TestServerTransport(server.TestServer),
             logger: NullLogger.Instance);
     }

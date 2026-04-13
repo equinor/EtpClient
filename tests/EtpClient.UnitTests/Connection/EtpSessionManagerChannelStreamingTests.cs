@@ -50,7 +50,7 @@ public sealed class EtpSessionManagerChannelStreamingTests
     [Fact]
     public async Task DescribeChannelsAsync_SendsProtocol1StartBeforeChannelDescribe()
     {
-        var protocolExceptionFrame = BuildProtocolExceptionFrame(correlationId: 3L, errorCode: 1003, message: "still testing");
+        var protocolExceptionFrame = BuildProtocolExceptionFrame(correlationId: 2L, errorCode: 1003, message: "still testing");
         var transport = BuildHandshakeAndFrameTransport([protocolExceptionFrame]);
 
         var manager = new EtpSessionManager(transport, NullLogger.Instance);
@@ -193,7 +193,7 @@ public sealed class EtpSessionManagerChannelStreamingTests
     [Fact]
     public async Task RequestChannelRangeAsync_AfterDescribe_DoesNotSendSecondProtocol1Start()
     {
-        var describeFailureFrame = BuildProtocolExceptionFrame(correlationId: 3L, errorCode: 1003, message: "describe done");
+        var describeFailureFrame = BuildProtocolExceptionFrame(correlationId: 2L, errorCode: 1003, message: "describe done");
         var rangeFailureFrame = BuildProtocolExceptionFrame(correlationId: 4L, errorCode: 1003, message: "range done");
         var transport = BuildHandshakeAndFrameTransport([describeFailureFrame, rangeFailureFrame]);
 
@@ -226,7 +226,7 @@ public sealed class EtpSessionManagerChannelStreamingTests
         Assert.Equal(EtpChannelStreamingMessageType.Start, headers[0].MessageType);
         Assert.Equal(EtpChannelStreamingMessageType.ChannelDescribe, headers[1].MessageType);
         Assert.Equal(EtpChannelStreamingMessageType.ChannelRangeRequest, headers[2].MessageType);
-        Assert.Single(headers.Where(header => header.MessageType == EtpChannelStreamingMessageType.Start));
+        Assert.Single(headers, header => header.MessageType == EtpChannelStreamingMessageType.Start);
     }
 
     // ── T025 [US3]: RequestChannelRangeAsync ─────────────────────────────────
