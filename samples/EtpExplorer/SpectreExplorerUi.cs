@@ -73,9 +73,9 @@ public sealed class SpectreExplorerUi : IExplorerUi
             ? 0
             : Math.Clamp(state.FocusedBrowseColumnIndex, 0, state.BrowseColumns.Count - 1);
         var selectedIndices = state.BrowseColumns
-            .Select(column => column.Resources.Count == 0
+            .Select(column => column.VisibleResources.Count == 0
                 ? -1
-                : Math.Clamp(column.SelectedIndex, 0, column.Resources.Count - 1))
+                : Math.Clamp(column.SelectedIndex, 0, column.VisibleResources.Count - 1))
             .ToArray();
 
         // Clear once to establish a fixed origin, then reuse cursor-home on every
@@ -89,7 +89,27 @@ public sealed class SpectreExplorerUi : IExplorerUi
                 ct.ThrowIfCancellationRequested();
                 RenderBrowseWorkspace(state, focusedColumnIndex, selectedIndices);
 
-                var key = System.Console.ReadKey(intercept: true).Key;
+                var keyInfo = System.Console.ReadKey(intercept: true);
+                var key = keyInfo.Key;
+
+                // '/' opens the search/filter input (cross-platform via KeyChar)
+                if (keyInfo.KeyChar == '/')
+                {
+                    System.Console.CursorVisible = true;
+                    System.Console.SetCursorPosition(0, System.Console.WindowHeight - 1);
+                    System.Console.Write("\x1b[2K"); // clear line
+                    System.Console.Write("Search (empty to clear): ");
+                    var rawTerm = System.Console.ReadLine() ?? string.Empty;
+                    System.Console.CursorVisible = false;
+                    return Task.FromResult(new BrowseWorkspaceResult
+                    {
+                        Action = BrowseWorkspaceAction.UpdateSearchTerm,
+                        FocusedColumnIndex = focusedColumnIndex,
+                        SelectedIndices = selectedIndices,
+                        UpdatedSearchTerm = rawTerm,
+                    });
+                }
+
                 switch (key)
                 {
                     case ConsoleKey.UpArrow:
@@ -266,14 +286,15 @@ public sealed class SpectreExplorerUi : IExplorerUi
             return;
 
         var column = columns[focusedColumnIndex];
-        if (column.Resources.Count == 0)
+        var visible = column.VisibleResources;
+        if (visible.Count == 0)
         {
             selectedIndices[focusedColumnIndex] = -1;
             return;
         }
 
         var currentIndex = selectedIndices[focusedColumnIndex] < 0 ? 0 : selectedIndices[focusedColumnIndex];
-        selectedIndices[focusedColumnIndex] = Math.Clamp(currentIndex + delta, 0, column.Resources.Count - 1);
+        selectedIndices[focusedColumnIndex] = Math.Clamp(currentIndex + delta, 0, visible.Count - 1);
     }
 
     private static void RenderBrowseWorkspace(
@@ -312,7 +333,7 @@ public sealed class SpectreExplorerUi : IExplorerUi
 
         // Plain-text length for the controls bar (markup tags are not visible chars).
         const string ControlsPlainText =
-            "Keys: Up/Down scroll  Left/Right change column  Enter open  Space add for streaming  Backspace close pane  Esc main menu";
+            "Keys: Up/Down scroll  Left/Right change column  Enter open  Space add for streaming  Backspace close pane  / search  Esc main menu";
 
         var statusLines   = PanelHeight(statusMessage.Length,     windowWidth);
         var controlsLines = PanelHeight(ControlsPlainText.Length, windowWidth);
@@ -377,7 +398,7 @@ public sealed class SpectreExplorerUi : IExplorerUi
         AnsiConsole.WriteLine();
 
         AnsiConsole.Write(new Panel(
-                "[grey]Keys:[/] [bold]Up/Down[/] scroll  [bold]Left/Right[/] change column  [bold]Enter[/] open  [bold]Space[/] add for streaming  [bold]Backspace[/] close pane  [bold]Esc[/] main menu")
+                "[grey]Keys:[/] [bold]Up/Down[/] scroll  [bold]Left/Right[/] change column  [bold]Enter[/] open  [bold]Space[/] add for streaming  [bold]Backspace[/] close pane  [bold]/[/] search  [bold]Esc[/] main menu")
             .Border(BoxBorder.Rounded)
             .Header(" Controls ", Justify.Left)
             .Expand());
@@ -409,17 +430,18 @@ public sealed class SpectreExplorerUi : IExplorerUi
             return "(none)";
 
         var column = columns[focusedColumnIndex];
-        if (column.Resources.Count == 0)
-            return "(empty)";
+        var visible = column.VisibleResources;
+        if (visible.Count == 0)
+            return string.IsNullOrWhiteSpace(column.SearchTerm) ? "(empty)" : "(no matches)";
 
         var selectedIndex = focusedColumnIndex < selectedIndices.Count
             ? selectedIndices[focusedColumnIndex]
             : column.SelectedIndex;
 
-        if (selectedIndex < 0 || selectedIndex >= column.Resources.Count)
+        if (selectedIndex < 0 || selectedIndex >= visible.Count)
             return "(none)";
 
-        return column.Resources[selectedIndex].Name;
+        return visible[selectedIndex].Name;
     }
 
     private static Panel CreateBrowsePanel(
@@ -430,9 +452,12 @@ public sealed class SpectreExplorerUi : IExplorerUi
         int? maxNameLength = null)
     {
         var content = BuildColumnContent(column, isFocused, selectedIndex, visibleRows, maxNameLength);
+        var searchSuffix = string.IsNullOrWhiteSpace(column.SearchTerm)
+            ? string.Empty
+            : $" [yellow]/[/][grey]{Markup.Escape(column.SearchTerm)}[/]";
         var title = isFocused
-            ? $"[bold yellow]▶ {Markup.Escape(column.Title)}[/]"
-            : Markup.Escape(column.Title);
+            ? $"[bold yellow]▶ {Markup.Escape(column.Title)}[/]{searchSuffix}"
+            : $"{Markup.Escape(column.Title)}{searchSuffix}";
 
         return new Panel(new Markup(content))
             .Border(isFocused ? BoxBorder.Double : BoxBorder.Rounded)
@@ -443,12 +468,18 @@ public sealed class SpectreExplorerUi : IExplorerUi
 
     private static string BuildColumnContent(ExplorerBrowseColumn column, bool isFocused, int selectedIndex, int visibleRows, int? maxNameLength = null)
     {
-        if (column.Resources.Count == 0)
-            return "[grey]No child nodes[/]";
+        var visibleResources = column.VisibleResources;
 
-        var safeSelectedIndex = Math.Clamp(selectedIndex, 0, column.Resources.Count - 1);
+        if (visibleResources.Count == 0)
+        {
+            return string.IsNullOrWhiteSpace(column.SearchTerm)
+                ? "[grey]No child nodes[/]"
+                : $"[yellow]No matches for \"[/][grey]{Markup.Escape(column.SearchTerm)}[/][yellow]\"[/]";
+        }
+
+        var safeSelectedIndex = Math.Clamp(selectedIndex, 0, visibleResources.Count - 1);
         var start = Math.Max(0, safeSelectedIndex - (visibleRows / 2));
-        var end = Math.Min(column.Resources.Count, start + visibleRows);
+        var end = Math.Min(visibleResources.Count, start + visibleRows);
         start = Math.Max(0, end - visibleRows);
 
         var lines = new List<string>();
@@ -457,7 +488,7 @@ public sealed class SpectreExplorerUi : IExplorerUi
 
         for (var i = start; i < end; i++)
         {
-            var resource = column.Resources[i];
+            var resource = visibleResources[i];
             var name = (maxNameLength.HasValue && resource.Name.Length > maxNameLength.Value)
                 ? resource.Name[..(maxNameLength.Value - 1)] + "\u2026"
                 : resource.Name;
@@ -482,7 +513,7 @@ public sealed class SpectreExplorerUi : IExplorerUi
                 lines.Add($"[white]  {label}[/]");
         }
 
-        if (end < column.Resources.Count)
+        if (end < visibleResources.Count)
             lines.Add("[grey]...[/]");
 
         while (lines.Count < visibleRows)
