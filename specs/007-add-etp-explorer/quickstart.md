@@ -47,3 +47,11 @@ dotnet run --project samples/EtpExplorer/EtpExplorer.csproj
 - The selection set retains multiple endpoints across browse actions.
 - Live output labels each incoming entry with its source endpoint.
 - Stopping streaming returns you to the connected interactive state without terminating the session unexpectedly.
+
+## Acceptance validation for SC-001
+
+1. Configure the required user secrets before starting the validation run.
+2. Launch the explorer from a clean terminal session using the standard `dotnet run` command.
+3. Connect to a server that exposes multiple root nodes.
+4. Measure elapsed time from process start until a root node is selected and the first level of that root is visible.
+5. Record the run as passing when the workflow completes in under 2 minutes without consulting protocol payloads or source code.

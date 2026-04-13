@@ -1,7 +1,7 @@
 # Implementation Plan: Format Channel Index Output
 
-**Branch**: `006-format-channel-indexes` | **Date**: 2026-04-10 | **Spec**: [/Users/LGEIR/src/etp_test/specs/006-format-channel-indexes/spec.md](/Users/LGEIR/src/etp_test/specs/006-format-channel-indexes/spec.md)
-**Input**: Feature specification from `/specs/006-format-channel-indexes/spec.md`
+**Branch**: `006-format-channel-indexes` | **Date**: 2026-04-10 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/006-format-channel-indexes/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 

@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-04-10
-**Feature**: [spec.md](/Users/LGEIR/src/etp_test/specs/003-support-avro-encoding/spec.md)
+**Feature**: [spec.md](../spec.md)
 
 ## Content Quality
 

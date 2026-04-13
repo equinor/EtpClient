@@ -5,7 +5,7 @@ description: "Task list for ETP Discovery Traversal"
 # Tasks: ETP Discovery Traversal
 
 **Branch**: `004-add-etp-discovery`  
-**Input**: Design documents from `/specs/004-etp-discovery/`  
+**Input**: Design documents from `specs/004-etp-discovery/`  
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Tests are REQUIRED for protocol-facing work. Include unit, integration, and sample tests for discovery request/response behavior, traversal aggregation, and secret-safe failures.
@@ -133,7 +133,7 @@ description: "Task list for ETP Discovery Traversal"
 **Purpose**: Align documentation, repository guidance, and full validation across all discovery stories.
 
 - [x] T030 [P] Update end-to-end verification notes and clause traceability in `specs/004-etp-discovery/research.md` and `specs/004-etp-discovery/quickstart.md`
-- [x] T031 [P] Update repository guidance for the Discovery API and sample usage in `/Users/LGEIR/src/etp_test/.github/copilot-instructions.md`
+- [x] T031 [P] Update repository guidance for the Discovery API and sample usage in `.github/copilot-instructions.md`
 - [x] T032 Run discovery validation via `tests/EtpClient.UnitTests/EtpClient.UnitTests.csproj`, `tests/EtpClient.IntegrationTests/EtpClient.IntegrationTests.csproj`, and `tests/EtpClient.SampleConsole.Tests/EtpClient.SampleConsole.Tests.csproj`
 
 ---

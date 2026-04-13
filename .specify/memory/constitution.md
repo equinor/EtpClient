@@ -84,7 +84,8 @@ Variables, constants, parameters, properties, and fields MUST follow standard C#
 conventions and remain compliant with Roslyn analyzers. Whenever a feature adds, changes, or
 removes user-visible behavior, setup steps, sample workflows, or client usage guidance, the
 root README.md MUST be reviewed and updated in the same change whenever the existing content is
-affected.
+affected. Spec artifacts, checklists, contracts, plans, quickstarts, and task lists MUST use
+repository-relative paths and links; machine-local absolute filesystem paths are prohibited.
 
 ## Delivery Workflow
 

@@ -5,7 +5,7 @@ description: "Task list for Channel Streaming Support"
 # Tasks: Channel Streaming Support
 
 **Branch**: `005-add-channel-streaming`  
-**Input**: Design documents from `/specs/005-channel-streaming/`  
+**Input**: Design documents from `specs/005-channel-streaming/`  
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Tests are REQUIRED for protocol-facing work. Include unit, integration, and sample tests for Protocol 1 describe, live streaming, range retrieval, multipart handling, and secret-safe failures.
@@ -134,7 +134,7 @@ description: "Task list for Channel Streaming Support"
 **Purpose**: Align docs, guidance, and full validation across all ChannelStreaming stories.
 
 - [X] T031 [P] Update end-to-end usage, verification steps, and API examples in `specs/005-channel-streaming/quickstart.md` and `specs/005-channel-streaming/contracts/etp-client-channel-streaming-api.md`
-- [X] T032 [P] Update implementation notes, clause traceability, and repository guidance in `specs/005-channel-streaming/research.md`, `specs/005-channel-streaming/data-model.md`, and `/Users/LGEIR/src/etp_test/.github/copilot-instructions.md`
+- [X] T032 [P] Update implementation notes, clause traceability, and repository guidance in `specs/005-channel-streaming/research.md`, `specs/005-channel-streaming/data-model.md`, and `.github/copilot-instructions.md`
 - [X] T033 Run ChannelStreaming validation via `tests/EtpClient.UnitTests/EtpClient.UnitTests.csproj`, `tests/EtpClient.IntegrationTests/EtpClient.IntegrationTests.csproj`, and `tests/EtpClient.SampleConsole.Tests/EtpClient.SampleConsole.Tests.csproj`
 
 ---

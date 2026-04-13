@@ -1,7 +1,7 @@
 # Implementation Plan: Sample Console Application
 
-**Branch**: `002-sample-console-app` | **Date**: 2026-04-09 | **Spec**: [/Users/LGEIR/src/etp_test/specs/002-sample-console-app/spec.md](/Users/LGEIR/src/etp_test/specs/002-sample-console-app/spec.md)
-**Input**: Feature specification from `/specs/002-sample-console-app/spec.md`
+**Branch**: `002-sample-console-app` | **Date**: 2026-04-09 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/002-sample-console-app/spec.md`
 
 ## Summary
 

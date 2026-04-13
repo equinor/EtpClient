@@ -5,7 +5,7 @@ description: "Task list for Format Channel Index Output"
 # Tasks: Format Channel Index Output
 
 **Branch**: `006-format-channel-indexes`  
-**Input**: Design documents from `/specs/006-format-channel-indexes/`  
+**Input**: Design documents from `specs/006-format-channel-indexes/`  
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Tests are REQUIRED. Include unit, integration, and sample-output tests for metadata preservation, time conversion, depth conversion, and fallback rendering.
@@ -132,7 +132,7 @@ description: "Task list for Format Channel Index Output"
 **Purpose**: Finalize shared behavior, examples, and end-to-end validation across all stories.
 
 - [ ] T029 [P] Refine sample formatting consistency, including shared line formatting and culture-aware output behavior, in `samples/EtpClient.SampleConsole/SampleOutputWriter.cs`
-- [ ] T030 [P] Update repository guidance and feature docs in `specs/006-format-channel-indexes/quickstart.md`, `specs/006-format-channel-indexes/research.md`, and `/Users/LGEIR/src/etp_test/.github/copilot-instructions.md`
+- [ ] T030 [P] Update repository guidance and feature docs in `specs/006-format-channel-indexes/quickstart.md`, `specs/006-format-channel-indexes/research.md`, and `.github/copilot-instructions.md`
 - [ ] T031 Run feature validation via `tests/EtpClient.UnitTests/EtpClient.UnitTests.csproj`, `tests/EtpClient.SampleConsole.Tests/EtpClient.SampleConsole.Tests.csproj`, and `tests/EtpClient.IntegrationTests/EtpClient.IntegrationTests.csproj`
 
 ---

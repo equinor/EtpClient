@@ -4,7 +4,7 @@ description: "Task list for Add ETP Explorer"
 
 # Tasks: Add ETP Explorer
 
-**Input**: Design documents from `/specs/007-add-etp-explorer/`  
+**Input**: Design documents from `specs/007-add-etp-explorer/`  
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Tests are REQUIRED. Include explorer application tests for startup validation, browsing, selection management, streaming lifecycle, output attribution, and clean shutdown.
@@ -68,7 +68,7 @@ description: "Task list for Add ETP Explorer"
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [X] T012 [P] [US1] Add browse workflow tests for root-node discovery, root selection, child navigation, and no-content handling in `tests/EtpExplorer.Tests/ExplorerBrowseWorkflowTests.cs`
+- [X] T012 [P] [US1] Add browse workflow tests for root-node discovery, root selection, root switching, child navigation, and no-content handling in `tests/EtpExplorer.Tests/ExplorerBrowseWorkflowTests.cs`
 - [X] T013 [P] [US1] Add browse rendering tests for root-node prompts, tree context, status messaging, and navigation breadcrumbs in `tests/EtpExplorer.Tests/ExplorerBrowseRenderingTests.cs`
 
 ### Implementation for User Story 1
@@ -131,8 +131,11 @@ description: "Task list for Add ETP Explorer"
 **Purpose**: Finish documentation, verification, and cross-story cleanup.
 
 - [X] T030 [P] Update explorer setup and usage details in `samples/EtpExplorer/appsettings.json` and `specs/007-add-etp-explorer/quickstart.md`
+- [X] T030A [P] Review and update root README usage guidance for the explorer workflow in `README.md`
+- [X] T030B [P] Verify README setup instructions match the explorer user-secrets and run flow in `README.md` and `specs/007-add-etp-explorer/quickstart.md`
 - [X] T031 [P] Add final explorer test-project build and coverage wiring in `tests/EtpExplorer.Tests/EtpExplorer.Tests.csproj` and `EtpClient.slnx`
 - [X] T032 Validate the quickstart flow and user-secrets instructions against `samples/EtpExplorer/EtpExplorer.csproj` and `specs/007-add-etp-explorer/quickstart.md`
+- [X] T032A Define and execute an acceptance check for first-run root selection and first-tree display in under 2 minutes using `specs/007-add-etp-explorer/quickstart.md`
 
 ---
 

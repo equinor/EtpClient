@@ -4,7 +4,7 @@ description: "Task list for Sample Console Application"
 
 # Tasks: Sample Console Application
 
-**Input**: Design documents from `/specs/002-sample-console-app/`
+**Input**: Design documents from `specs/002-sample-console-app/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Sample-specific automated tests are required for configuration validation, success/failure presentation, and clean shutdown. Existing library protocol tests remain the source of wire-level coverage.

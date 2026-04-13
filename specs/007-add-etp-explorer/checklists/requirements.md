@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-04-12
-**Feature**: [spec.md](/Users/LGEIR/src/etp_test/specs/007-add-etp-explorer/spec.md)
+**Feature**: [spec.md](../spec.md)
 
 ## Content Quality
 

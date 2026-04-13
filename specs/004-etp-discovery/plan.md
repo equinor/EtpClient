@@ -1,7 +1,7 @@
 # Implementation Plan: ETP Discovery Traversal
 
-**Branch**: `004-add-etp-discovery` | **Date**: 2026-04-10 | **Spec**: [/Users/LGEIR/src/etp_test/specs/004-etp-discovery/spec.md](/Users/LGEIR/src/etp_test/specs/004-etp-discovery/spec.md)
-**Input**: Feature specification from `/specs/004-etp-discovery/spec.md`
+**Branch**: `004-add-etp-discovery` | **Date**: 2026-04-10 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/004-etp-discovery/spec.md`
 
 ## Summary
 

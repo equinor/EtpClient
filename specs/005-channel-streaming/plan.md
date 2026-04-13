@@ -1,7 +1,7 @@
 # Implementation Plan: Channel Streaming Support
 
-**Branch**: `005-add-channel-streaming` | **Date**: 2026-04-10 | **Spec**: [/Users/LGEIR/src/etp_test/specs/005-channel-streaming/spec.md](/Users/LGEIR/src/etp_test/specs/005-channel-streaming/spec.md)
-**Input**: Feature specification from `/specs/005-channel-streaming/spec.md`
+**Branch**: `005-add-channel-streaming` | **Date**: 2026-04-10 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/005-channel-streaming/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 

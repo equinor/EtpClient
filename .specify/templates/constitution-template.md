@@ -34,6 +34,8 @@
 [SECTION_2_CONTENT]
 <!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
 
+<!-- Include a repository path rule when relevant: spec artifacts and governance docs should use repository-relative paths and links, never machine-local absolute filesystem paths. -->
+
 ## [SECTION_3_NAME]
 <!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
 

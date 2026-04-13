@@ -5,7 +5,7 @@ description: "Task list for ETP Basic Auth Connection"
 # Tasks: ETP Basic Auth Connection
 
 **Branch**: `001-etp-basic-auth`
-**Input**: Design documents from `/specs/001-etp-basic-auth/`
+**Input**: Design documents from `specs/001-etp-basic-auth/`
 **Prerequisites**: plan.md ✓, spec.md ✓, research.md ✓, data-model.md ✓, contracts/ ✓
 
 **Tests**: Tests are REQUIRED for protocol-facing work. Unit tests and integration tests for wire behavior.

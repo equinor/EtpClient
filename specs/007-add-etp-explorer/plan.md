@@ -1,7 +1,7 @@
 # Implementation Plan: Add ETP Explorer
 
-**Branch**: `007-add-etp-explorer` | **Date**: 2026-04-12 | **Spec**: [/Users/LGEIR/src/etp_test/specs/007-add-etp-explorer/spec.md](/Users/LGEIR/src/etp_test/specs/007-add-etp-explorer/spec.md)
-**Input**: Feature specification from `/specs/007-add-etp-explorer/spec.md`
+**Branch**: `007-add-etp-explorer` | **Date**: 2026-04-12 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/007-add-etp-explorer/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 

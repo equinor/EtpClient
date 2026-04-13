@@ -21,6 +21,7 @@ As a developer connecting to an ETP server, I want the explorer to prompt me to 
 2. **Given** available root nodes such as `witsml14` and `witsml20`, **When** the user selects one root node, **Then** the application scopes subsequent browsing to that selected root node.
 3. **Given** a selected root node, **When** the user opens a resource that exposes child resources or channels, **Then** the application shows the next level of available content as part of the same tree without losing the user's navigation context.
 4. **Given** a resource that does not expose streamable content, **When** the user navigates to it within the selected tree, **Then** the application clearly indicates that no streamable endpoints are available from that selection.
+5. **Given** a selected root node and an active browse context, **When** the user returns to the root-node selection and chooses a different root node, **Then** the application resets the browsing context to the newly selected root without requiring a restart.
 
 ---
 
@@ -64,6 +65,34 @@ As a developer validating live ETP data, I want to start streaming from my selec
 - One selected endpoint starts streaming while another fails or becomes unavailable.
 - The stream ends because of cancellation, server disconnect, or endpoint removal while the user is still in the interactive session.
 - The number of available resources or endpoints is large enough that the interactive flow must remain understandable and navigable.
+
+## Protocol Compliance
+
+Relevant ETP clauses and message families for this feature:
+
+- Discovery behavior follows the ETP v1.1 Discovery interfaces and sequences, including `GetResources`, `GetResourcesResponse`, and empty-result acknowledgement handling.
+- ChannelStreaming behavior follows the ETP v1.1 consumer-side describe and streaming semantics, including `ChannelDescribe`, `ChannelMetadata`, `ChannelStreamingStart`, `ChannelStreamingStop`, `ChannelData`, `ChannelDataChange`, and `ChannelRemove`.
+- Message header correlation and multipart semantics are used through the existing client library behavior and are not redefined by this feature.
+
+Endpoint interaction implemented by this feature:
+
+- The explorer connects through the existing `EtpClient` session workflow.
+- The explorer discovers available root nodes and browseable resources through discovery operations.
+- The explorer resolves streamable endpoints through channel description workflows before any live subscription begins.
+- The explorer starts and stops live subscriptions only through the existing ChannelStreaming APIs in the client library.
+
+Authentication assumptions:
+
+- The explorer uses the same explicit connection inputs as the existing sample workflows.
+- Endpoint URI, username, and password are loaded through .NET configuration and user secrets for local development.
+- The feature does not permit credentials to be entered into checked-in files, echoed in console output, or included in logs, exceptions, or tests.
+
+Expected subscription lifecycle:
+
+- The user connects first, then selects a root node, then browses to a streamable endpoint, then explicitly starts streaming.
+- Streaming remains cancellation-aware and user-controlled.
+- Stopping a stream returns the explorer to a clear interactive state or exits cleanly.
+- Partial endpoint failures must be surfaced without hiding which endpoints remained active or failed.
 
 ## Requirements *(mandatory)*
 

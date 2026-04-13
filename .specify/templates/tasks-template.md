@@ -5,7 +5,7 @@ description: "Task list template for feature implementation"
 
 # Tasks: [FEATURE NAME]
 
-**Input**: Design documents from `/specs/[###-feature-name]/`
+**Input**: Design documents from `specs/[###-feature-name]/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
 **Tests**: Tests are REQUIRED for protocol-facing work. Include unit tests and contract or integration tests for wire behavior.
@@ -16,12 +16,13 @@ description: "Task list template for feature implementation"
 
 - **[P]**: Can run in parallel (different files, no dependencies)
 - **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
-- Include exact file paths in descriptions
+- Include exact repository-relative file paths in descriptions
 
 ## Path Conventions
 
 - **C# client library**: `src/EtpClient/`, `tests/EtpClient.UnitTests/`, `tests/EtpClient.IntegrationTests/`, `tests/EtpClient.ContractTests/`
 - Adjust exact project names based on the selected plan structure, but preserve the split between unit, integration, and contract coverage.
+- Never use machine-local absolute filesystem paths in generated tasks.
 
 <!-- 
   ============================================================================

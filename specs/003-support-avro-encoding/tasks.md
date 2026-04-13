@@ -4,7 +4,7 @@ description: "Task list for Support Avro Encoding"
 
 # Tasks: Support Avro Encoding
 
-**Input**: Design documents from `/specs/003-support-avro-encoding/`
+**Input**: Design documents from `specs/003-support-avro-encoding/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Tests are REQUIRED for this protocol-facing change. Include unit tests plus integration coverage for binary and JSON wire behavior.

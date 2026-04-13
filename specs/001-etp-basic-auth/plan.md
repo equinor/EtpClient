@@ -1,7 +1,7 @@
 # Implementation Plan: ETP Basic Auth Connection
 
-**Branch**: `001-etp-basic-auth` | **Date**: 2026-04-09 | **Spec**: [/Users/LGEIR/src/etp_test/specs/001-etp-basic-auth/spec.md](/Users/LGEIR/src/etp_test/specs/001-etp-basic-auth/spec.md)
-**Input**: Feature specification from `/specs/001-etp-basic-auth/spec.md`
+**Branch**: `001-etp-basic-auth` | **Date**: 2026-04-09 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/001-etp-basic-auth/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 

@@ -1,9 +1,11 @@
 # Implementation Plan: [FEATURE]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/[###-feature-name]/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+
+**Path Rule**: Use repository-relative paths only. Never include machine-local absolute filesystem paths in generated artifacts.
 
 ## Summary
 
