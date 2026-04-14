@@ -176,6 +176,19 @@ public sealed class ExplorerApp
         {
             _state.SelectionSet = _selectionSet.CurrentSelection.ToList();
             var result = await _ui.PromptBrowseWorkspaceAsync(_state, ct).ConfigureAwait(false);
+
+            if (result.Action == BrowseWorkspaceAction.UpdateSearchTerm)
+            {
+                // Update focused column index then apply the search term;
+                // do not run ApplyBrowseSelection since the visible set is about to change.
+                _state.FocusedBrowseColumnIndex = Math.Clamp(
+                    result.FocusedColumnIndex,
+                    0,
+                    Math.Max(0, _state.BrowseColumns.Count - 1));
+                ApplySearchTermToFocusedColumn(result.UpdatedSearchTerm ?? string.Empty);
+                continue;
+            }
+
             ApplyBrowseSelection(result);
 
             switch (result.Action)
@@ -262,7 +275,8 @@ public sealed class ExplorerApp
         for (var i = 0; i < _state.BrowseColumns.Count; i++)
         {
             var column = _state.BrowseColumns[i];
-            if (column.Resources.Count == 0)
+            var visible = column.VisibleResources;
+            if (visible.Count == 0)
             {
                 column.SelectedIndex = -1;
                 continue;
@@ -272,7 +286,81 @@ public sealed class ExplorerApp
                 ? result.SelectedIndices[i]
                 : column.SelectedIndex;
 
-            column.SelectedIndex = Math.Clamp(requestedIndex, 0, column.Resources.Count - 1);
+            column.SelectedIndex = Math.Clamp(requestedIndex, 0, visible.Count - 1);
+        }
+
+        SyncBrowseState();
+    }
+
+    private void ApplySearchTermToFocusedColumn(string term)
+    {
+        if (_state.BrowseColumns.Count == 0)
+            return;
+
+        var column = _state.BrowseColumns[_state.FocusedBrowseColumnIndex];
+
+        // Remember which resource is currently focused before the term changes.
+        var prevVisible = column.VisibleResources;
+        BrowseableResource? prevSelected = prevVisible.Count > 0 && column.SelectedIndex >= 0
+            ? prevVisible[Math.Clamp(column.SelectedIndex, 0, prevVisible.Count - 1)]
+            : null;
+
+        column.SearchTerm = term;
+        var nowVisible = column.VisibleResources;
+
+        SelectionVisibilityOutcome outcome;
+        if (nowVisible.Count == 0)
+        {
+            column.SelectedIndex = -1;
+            outcome = SelectionVisibilityOutcome.Cleared;
+        }
+        else if (prevSelected is not null)
+        {
+            var newIdx = -1;
+            for (var i = 0; i < nowVisible.Count; i++)
+            {
+                if (ReferenceEquals(nowVisible[i], prevSelected))
+                {
+                    newIdx = i;
+                    break;
+                }
+            }
+
+            if (newIdx >= 0)
+            {
+                column.SelectedIndex = newIdx;
+                outcome = SelectionVisibilityOutcome.Preserved;
+            }
+            else
+            {
+                column.SelectedIndex = 0;
+                outcome = SelectionVisibilityOutcome.Reassigned;
+            }
+        }
+        else
+        {
+            column.SelectedIndex = 0;
+            outcome = SelectionVisibilityOutcome.Preserved;
+        }
+
+        if (string.IsNullOrWhiteSpace(term))
+        {
+            _state.LastStatusMessage = column.Resources.Count == 0
+                ? $"No rows in {column.Title}."
+                : $"Showing all {column.Resources.Count} item(s) in {column.Title}.";
+        }
+        else if (outcome == SelectionVisibilityOutcome.Cleared)
+        {
+            _state.LastStatusMessage =
+                $"No items match \"{term}\" in {column.Title}. Enter a new term or clear with empty input.";
+        }
+        else
+        {
+            var suffix = outcome == SelectionVisibilityOutcome.Reassigned
+                ? " Selection reassigned to first match."
+                : string.Empty;
+            _state.LastStatusMessage =
+                $"Filter active: {nowVisible.Count} match(es) in {column.Title}.{suffix}";
         }
 
         SyncBrowseState();
@@ -395,10 +483,11 @@ public sealed class ExplorerApp
             0,
             _state.BrowseColumns.Count - 1)];
 
-        if (focusedColumn.Resources.Count == 0 || focusedColumn.SelectedIndex < 0)
+        var visible = focusedColumn.VisibleResources;
+        if (visible.Count == 0 || focusedColumn.SelectedIndex < 0)
             return null;
 
-        return focusedColumn.Resources[focusedColumn.SelectedIndex];
+        return visible[Math.Clamp(focusedColumn.SelectedIndex, 0, visible.Count - 1)];
     }
 
     private void SyncBrowseState()
@@ -413,10 +502,11 @@ public sealed class ExplorerApp
         for (var i = 0; i < _state.BrowseColumns.Count; i++)
         {
             var column = _state.BrowseColumns[i];
-            if (column.Resources.Count == 0 || column.SelectedIndex < 0)
+            var visible = column.VisibleResources;
+            if (visible.Count == 0 || column.SelectedIndex < 0)
                 break;
 
-            var resource = column.Resources[column.SelectedIndex];
+            var resource = visible[Math.Clamp(column.SelectedIndex, 0, visible.Count - 1)];
             _state.NavigationStack.Add(resource.Name);
             _state.CurrentUri = resource.Uri;
 

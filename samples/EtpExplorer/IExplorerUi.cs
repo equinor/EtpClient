@@ -33,6 +33,9 @@ public interface IExplorerUi
 
     /// <summary>
     /// Shows the pane-style browse workspace and returns the chosen interaction.
+    /// The result <see cref="BrowseWorkspaceAction"/> may include
+    /// <see cref="BrowseWorkspaceAction.UpdateSearchTerm"/> to apply or clear a search
+    /// or filter term on the focused column.
     /// </summary>
     Task<BrowseWorkspaceResult> PromptBrowseWorkspaceAsync(
         ExplorerSessionState state,

@@ -145,6 +145,7 @@ public class FakeExplorerUi : IExplorerUi
                 ParentUri = column.ParentUri,
                 Resources = column.Resources.ToList(),
                 SelectedIndex = column.SelectedIndex,
+                SearchTerm = column.SearchTerm,
             })
             .ToList(),
         FocusedBrowseColumnIndex = state.FocusedBrowseColumnIndex,
