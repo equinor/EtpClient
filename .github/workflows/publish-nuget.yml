@@ -1,0 +1,63 @@
+# Manual NuGet publish workflow for EtpClient
+#
+# Triggered manually from the GitHub Actions UI. The caller supplies a
+# semantic version string; the workflow packs and pushes EtpClient to the
+# GitHub Package Repository under the equinor organisation.
+#
+# Authentication uses the built-in GITHUB_TOKEN — no PAT or repository secret
+# is required. The caller must have write access to the repository.
+#
+# Usage:
+#   1. Navigate to Actions → "Publish NuGet"
+#   2. Click "Run workflow"
+#   3. Enter the semantic version to publish (e.g. 1.0.0 or 1.0.0-beta.1)
+#   4. Click "Run workflow"
+
+name: Publish NuGet
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version to publish (e.g. 1.0.0)'
+        required: true
+        type: string
+
+# Read repository contents, write to GitHub Packages
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Pack the EtpClient library and push it to the GitHub Package Repository.
+  # ---------------------------------------------------------------------------
+  publish:
+    name: Pack and publish EtpClient
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # .NET SDK version — update this single line when upgrading to a new major/minor
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet packages
+        run: dotnet restore src/EtpClient/EtpClient.csproj
+
+      - name: Build library (Release)
+        run: dotnet build src/EtpClient/EtpClient.csproj --configuration Release --no-restore
+
+      - name: Pack library with supplied version
+        run: dotnet pack src/EtpClient/EtpClient.csproj --configuration Release --no-build -p:PackageVersion=${{ inputs.version }}
+
+      - name: Push package to GitHub Package Repository
+        run: |
+          dotnet nuget push "src/EtpClient/bin/Release/*.nupkg" \
+            --source "https://nuget.pkg.github.com/equinor/index.json" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --skip-duplicate

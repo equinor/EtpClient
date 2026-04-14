@@ -1,6 +1,6 @@
 # EtpClient Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-12
+Auto-generated from all feature plans. Last updated: 2026-04-14
 
 ## Active Technologies
 - C# with .NET 10 + `EtpClient` project reference, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.UserSecrets`, `Microsoft.Extensions.Configuration.Binder`, `Microsoft.Extensions.Logging.Console` (002-sample-console-app)
@@ -17,6 +17,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-12
 - `EtpChannelStreamingException` carries `RequestedTarget` and optional `EtpErrorCode?`; thrown on `ProtocolException` or unexpected message in Protocol 1 operations (005-add-channel-streaming)
 - C# with .NET 10 + `System.Net.WebSockets.ClientWebSocket`, `System.Text.Json`, `Microsoft.Extensions.Logging.Abstractions`, existing internal Avro reader/writer helpers, sample console infrastructure in `Microsoft.Extensions.Hosting` (006-format-channel-indexes)
 - C# with .NET 10 + `EtpClient` project reference, `Spectre.Console`, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.UserSecrets`, `Microsoft.Extensions.Configuration.Binder`, `Microsoft.Extensions.Logging.Console`; test-time use of xUnit and NSubstitute, with optional `Spectre.Console.Testing` only if the chosen UI seams need i (007-add-etp-explorer)
+- YAML (GitHub Actions), C# / .NET 10 + GitHub Actions built-in (`actions/checkout@v4`, `actions/setup-dotnet@v4`); `dorny/paths-filter@v3` for path-change detection (see research.md) (009-ci-github-workflows)
 
 ## Project Structure
 
@@ -82,9 +83,9 @@ C# with .NET 10: Follow standard conventions
 - ChannelStreaming: `EtpChannelStreamingException` (not `InvalidOperationException`) for `ProtocolException` or unexpected protocol messages in Protocol 1 operations
 
 ## Recent Changes
+- 009-ci-github-workflows: Added YAML (GitHub Actions), C# / .NET 10 + GitHub Actions built-in (`actions/checkout@v4`, `actions/setup-dotnet@v4`); `dorny/paths-filter@v3` for path-change detection (see research.md)
 - 007-add-etp-explorer: Added C# with .NET 10 + `EtpClient` project reference, `Spectre.Console`, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.UserSecrets`, `Microsoft.Extensions.Configuration.Binder`, `Microsoft.Extensions.Logging.Console`; test-time use of xUnit and NSubstitute, with optional `Spectre.Console.Testing` only if the chosen UI seams need i
 - 006-format-channel-indexes: Added C# with .NET 10 + `System.Net.WebSockets.ClientWebSocket`, `System.Text.Json`, `Microsoft.Extensions.Logging.Abstractions`, existing internal Avro reader/writer helpers, sample console infrastructure in `Microsoft.Extensions.Hosting`
-- 005-add-channel-streaming: Added full consumer-side Protocol 1 ChannelStreaming: `DescribeChannelsAsync` (multipart ChannelMetadata aggregation), `StartChannelStreamingAsync` (IAsyncEnumerable<ChannelEvent>), `StopChannelStreamingAsync`, `RequestChannelRangeAsync` (correlated multipart ChannelData aggregation), `EtpChannelStreamingException`, Protocol 1 log events 1011-1020, sample app describe/stream/range workflow, `SampleRunOutcome.LiveStreamingResult`/`ChannelRangeResult`
 
 
 <!-- MANUAL ADDITIONS START -->

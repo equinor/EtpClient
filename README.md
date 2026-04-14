@@ -1,5 +1,7 @@
 # EtpClient
 
+[![CI](https://github.com/equinor/EtpClient/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/equinor/EtpClient/actions/workflows/ci.yml)
+
 `EtpClient` is a .NET 10 ETP client library focused on authenticated session setup, Discovery traversal, and Protocol 1 ChannelStreaming workflows against ETP servers.
 
 The repository contains:
@@ -22,7 +24,6 @@ The repository contains:
 
 ## Work in progress:
 
-- (CI) Automated builds in Github, including tests
 - (Sample) Complete the EtpExplorer sample application. This is an interactive console application for navigating a ETP server which supports streaming data to the console. This is still a bit rough in the edges
 - Publish a re-usable package of the library (nuget.org or github package repository) to make it easier to use in other projects
 
