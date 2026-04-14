@@ -287,11 +287,21 @@ public sealed class SpectreExplorerUi : IExplorerUi
 
     public Task<bool> PromptStopStreamingAsync(CancellationToken ct = default)
     {
-        if (System.Console.KeyAvailable)
+        if (System.Console.IsInputRedirected)
+            return Task.FromResult(false);
+
+        try
         {
-            var key = System.Console.ReadKey(intercept: true);
-            if (key.Key == ConsoleKey.S || key.Key == ConsoleKey.Escape)
-                return Task.FromResult(true);
+            if (System.Console.KeyAvailable)
+            {
+                var key = System.Console.ReadKey(intercept: true);
+                if (key.Key == ConsoleKey.S || key.Key == ConsoleKey.Escape)
+                    return Task.FromResult(true);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // No interactive console available; treat as not stopped.
         }
 
         return Task.FromResult(false);
