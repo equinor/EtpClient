@@ -36,11 +36,11 @@ on:
 
 # Cancel in-flight runs for the same ref when a new commit is pushed.
 # This keeps PRs responsive and avoids wasting runner minutes on stale runs.
-# On main, cancel-in-progress is still set to true; because main pushes come
-# from merged PRs they rarely overlap, and the badge reflects the latest run.
+# For pushes to main, preserve the in-flight run so main history and badges
+# reflect completed runs instead of being cancelled by a subsequent push.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # ---------------------------------------------------------------------------
