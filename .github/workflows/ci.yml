@@ -126,7 +126,7 @@ jobs:
   sample-console:
     name: Sample Console
     needs: changes
-    if: needs.changes.outputs.sample-console == 'true'
+    if: needs.changes.outputs['sample-console'] == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -155,7 +155,7 @@ jobs:
   etp-explorer:
     name: ETP Explorer
     needs: changes
-    if: needs.changes.outputs.etp-explorer == 'true'
+    if: needs.changes.outputs['etp-explorer'] == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

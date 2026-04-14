@@ -117,7 +117,7 @@ Add the following properties to the `<PropertyGroup>` in `src/EtpClient/EtpClien
 <Description>A .NET 10 ETP v1.1 client library for authenticated session setup, Discovery traversal, and Protocol 1 ChannelStreaming.</Description>
 <RepositoryUrl>https://github.com/equinor/EtpClient</RepositoryUrl>
 <RepositoryType>git</RepositoryType>
-<PackageLicenseExpression>MIT</PackageLicenseExpression>
+<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
 <PackageReadmeFile>README.md</PackageReadmeFile>
 ```
 
