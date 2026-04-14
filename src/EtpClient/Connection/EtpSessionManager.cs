@@ -312,8 +312,9 @@ internal sealed class EtpSessionManager
     /// <summary>
     /// Starts live Protocol 1 channel streaming and yields <see cref="ChannelEvent"/> instances
     /// as the producer sends data, change, status, or remove messages.
-    /// The enumeration completes when a <c>ChannelRemove</c> is received or the cancellation
-    /// token is fired. <c>ProtocolException</c> causes an <see cref="EtpChannelStreamingException"/>.
+    /// The enumeration completes when all subscribed channels have been individually removed
+    /// by the server, or when the cancellation token is fired.
+    /// A <c>ProtocolException</c> causes an <see cref="EtpChannelStreamingException"/>.
     /// </summary>
     public async IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(
         IReadOnlyList<ChannelSubscriptionInfo> subscriptions,
@@ -326,6 +327,8 @@ internal sealed class EtpSessionManager
         var host = _host;
         var messageId = Interlocked.Increment(ref _nextMessageId);
         EtpClientLog.StreamingStarted(_logger, host, subscriptions.Count);
+        // Deduplicated set of channel IDs we expect the server to remove before completing.
+        var remainingChannelIds = new HashSet<long>(subscriptions.Select(s => s.ChannelId));
 
         await EnsureChannelStreamingProtocolStartedAsync(codec, ct).ConfigureAwait(false);
 
@@ -396,13 +399,15 @@ internal sealed class EtpSessionManager
             {
                 var (_, chanId, reason) = codec.DecodeChannelRemove(responseFrame);
                 EtpClientLog.StreamingChannelRemoved(_logger, host, chanId);
+                remainingChannelIds.Remove(chanId); // no-op for unsubscribed or duplicate removes
                 yield return new ChannelEvent
                 {
                     Kind = ChannelEventKind.Remove,
                     ChannelId = chanId,
                     RemoveReason = reason,
                 };
-                yield break; // producer signalled channel end
+                if (remainingChannelIds.Count == 0)
+                    yield break; // all subscribed channels removed by server
             }
             else if (header.MessageType == EtpMessageType.ProtocolException)
             {

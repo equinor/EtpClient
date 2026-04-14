@@ -561,18 +561,26 @@ public sealed class ExplorerApp
         }
 
         var subscriptions = _streamingService.BuildSubscriptions(selection);
+        var snapshot = _streamingService.BuildInitialSnapshot(selection);
+        var formatter = new StreamEventFormatter(selection);
+
         _state.ConnectionState = ExplorerConnectionState.Streaming;
         _state.ActiveStreamChannels = selection.Select(s => s.Endpoint.ChannelId).ToList();
 
         _ui.ShowStatus($"Starting live stream for {selection.Count} endpoint(s)...");
+        _ui.ResetStreamView();
+        _ui.RenderStreamSnapshot(snapshot);
 
         using var streamCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         try
         {
-            await foreach (var rendered in _streamingService.StreamAsync(_client, subscriptions, selection, streamCts.Token))
+            await foreach (var evt in _client.StartChannelStreamingAsync(subscriptions, streamCts.Token).WithCancellation(streamCts.Token))
             {
-                _ui.RenderStreamEvent(rendered);
+                foreach (var update in formatter.Format(evt))
+                    _streamingService.ApplyEvent(snapshot, update);
+
+                _ui.RenderStreamSnapshot(snapshot);
 
                 // Non-blocking stop check
                 var shouldStop = await _ui.PromptStopStreamingAsync(streamCts.Token).ConfigureAwait(false);
@@ -589,6 +597,8 @@ public sealed class ExplorerApp
         }
         finally
         {
+            snapshot.IsActive = false;
+            _ui.RenderStreamSnapshot(snapshot);
             // Best-effort stop
             await _streamingService.StopAsync(_client, _state.ActiveStreamChannels, ct).ConfigureAwait(false);
             _state.ActiveStreamChannels.Clear();

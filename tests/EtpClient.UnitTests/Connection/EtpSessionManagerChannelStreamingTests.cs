@@ -93,6 +93,68 @@ public sealed class EtpSessionManagerChannelStreamingTests
     }
 
     [Fact]
+    public async Task StartChannelStreamingAsync_MultiSubscription_ContinuesAfterPartialRemove()
+    {
+        // Two subscriptions: server removes channel 10 first, then channel 11.
+        // The stream should continue after the first Remove and only complete once both are removed.
+        var dataFrame = BuildChannelDataFrame(
+            channelId: 11L, indexValue: 1000L, doubleValue: 1.5,
+            correlationId: 0L, messageId: 3L, finalPart: true);
+        var removeFrame1 = BuildChannelRemoveFrame(channelId: 10L, reason: "Partial stop", messageId: 4L);
+        var removeFrame2 = BuildChannelRemoveFrame(channelId: 11L, reason: "Final stop", messageId: 5L);
+        var transport = BuildHandshakeAndFrameTransport([dataFrame, removeFrame1, removeFrame2]);
+
+        var manager = new EtpSessionManager(transport, NullLogger.Instance);
+        await manager.ConnectAsync(DefaultOptions, CancellationToken.None);
+
+        var subscriptions = new[]
+        {
+            new ChannelSubscriptionInfo(10L, startLatest: true, receiveChangeNotifications: false),
+            new ChannelSubscriptionInfo(11L, startLatest: true, receiveChangeNotifications: false),
+        };
+        var events = new List<ChannelEvent>();
+        await foreach (var ev in manager.StartChannelStreamingAsync(subscriptions, CancellationToken.None))
+            events.Add(ev);
+
+        // Data, Remove(10), Remove(11) — should not stop early after Remove(10)
+        Assert.Equal(3, events.Count);
+        Assert.Equal(ChannelEventKind.Data, events[0].Kind);
+        Assert.Equal(ChannelEventKind.Remove, events[1].Kind);
+        Assert.Equal(10L, events[1].ChannelId);
+        Assert.Equal(ChannelEventKind.Remove, events[2].Kind);
+        Assert.Equal(11L, events[2].ChannelId);
+    }
+
+    [Fact]
+    public async Task StartChannelStreamingAsync_UnsubscribedChannelRemove_DoesNotEndStream()
+    {
+        // Server sends Remove for a channel that was never subscribed (e.g. stray server-side event).
+        // The stream must continue until the actual subscribed channel is removed.
+        var unexpectedRemoveFrame = BuildChannelRemoveFrame(channelId: 99L, reason: "Stray", messageId: 3L);
+        var dataFrame = BuildChannelDataFrame(
+            channelId: 5L, indexValue: 1000L, doubleValue: 2.5,
+            correlationId: 0L, messageId: 4L, finalPart: true);
+        var expectedRemoveFrame = BuildChannelRemoveFrame(channelId: 5L, reason: "Done", messageId: 5L);
+        var transport = BuildHandshakeAndFrameTransport([unexpectedRemoveFrame, dataFrame, expectedRemoveFrame]);
+
+        var manager = new EtpSessionManager(transport, NullLogger.Instance);
+        await manager.ConnectAsync(DefaultOptions, CancellationToken.None);
+
+        var subscriptions = new[] { new ChannelSubscriptionInfo(5L, startLatest: true, receiveChangeNotifications: false) };
+        var events = new List<ChannelEvent>();
+        await foreach (var ev in manager.StartChannelStreamingAsync(subscriptions, CancellationToken.None))
+            events.Add(ev);
+
+        // Remove(99) is yielded but must NOT end the session; Data(5) and Remove(5) must follow
+        Assert.Equal(3, events.Count);
+        Assert.Equal(ChannelEventKind.Remove, events[0].Kind);
+        Assert.Equal(99L, events[0].ChannelId);
+        Assert.Equal(ChannelEventKind.Data, events[1].Kind);
+        Assert.Equal(ChannelEventKind.Remove, events[2].Kind);
+        Assert.Equal(5L, events[2].ChannelId);
+    }
+
+    [Fact]
     public async Task StartChannelStreamingAsync_ServerSendsStatusChange_YieldsStatusChangeEvent()
     {
         var changeFrame = BuildChannelStatusChangeFrame(channelId: 3L, statusIndex: 1 /* Inactive */, messageId: 3L);

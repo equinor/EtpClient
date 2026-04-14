@@ -18,13 +18,77 @@ public sealed class ExplorerStreamingService
 
     /// <summary>
     /// Builds the list of channel subscriptions from the current selection set.
-    /// All subscriptions use start-latest streaming.
+    /// All subscriptions use start-latest streaming with change notifications enabled
+    /// so that compliant servers deliver ChannelDataChange events.
     /// </summary>
     public IReadOnlyList<ChannelSubscriptionInfo> BuildSubscriptions(IReadOnlyList<SelectedEndpoint> selection)
     {
         return selection
-            .Select(s => new ChannelSubscriptionInfo(s.Endpoint.ChannelId, startLatest: true, receiveChangeNotifications: false))
+            .Select(s => new ChannelSubscriptionInfo(s.Endpoint.ChannelId, startLatest: true, receiveChangeNotifications: true))
             .ToList();
+    }
+
+    /// <summary>
+    /// Creates the initial fixed-row snapshot from the current selection set.
+    /// Rows are sorted alphabetically by channel name and set to waiting state.
+    /// </summary>
+    public StreamViewSnapshot BuildInitialSnapshot(IReadOnlyList<SelectedEndpoint> selection)
+    {
+        var rows = selection
+            .Select(s => new StreamRowSnapshot
+            {
+                ChannelId = s.Endpoint.ChannelId,
+                ChannelName = s.Endpoint.ChannelName,
+                SourceResourceUri = s.Endpoint.SourceResourceUri,
+            })
+            .OrderBy(r => r.ChannelName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new StreamViewSnapshot
+        {
+            Rows = rows,
+            StartedAtUtc = DateTimeOffset.UtcNow,
+        };
+    }
+
+    /// <summary>
+    /// Applies a formatted stream event to the matching row in the snapshot.
+    /// Updates index, value, and status fields in place.
+    /// No-op if no row matches the event's channel ID.
+    /// </summary>
+    public void ApplyEvent(StreamViewSnapshot snapshot, RenderedStreamEvent update)
+    {
+        var row = snapshot.Rows.FirstOrDefault(r => r.ChannelId == update.ChannelId);
+        if (row is null)
+            return;
+
+        row.LastEventKind = update.EventKind;
+        row.LastUpdatedAtUtc = update.ObservedAtUtc;
+
+        switch (update.EventKind)
+        {
+            case StreamEventKind.Data:
+                row.PrimaryIndexText = update.PrimaryIndexText;
+                row.ValueText = update.ValueText;
+                row.RowStatus = RowStatusField.Live;
+                row.StatusText = "Live";
+                break;
+
+            case StreamEventKind.DataChange:
+                row.RowStatus = RowStatusField.Changed;
+                row.StatusText = "Changed";
+                break;
+
+            case StreamEventKind.StatusChange:
+                row.RowStatus = RowStatusField.StatusChanged;
+                row.StatusText = update.ValueText;
+                break;
+
+            case StreamEventKind.Remove:
+                row.RowStatus = RowStatusField.Ended;
+                row.StatusText = "Ended";
+                break;
+        }
     }
 
     /// <summary>
@@ -43,9 +107,6 @@ public sealed class ExplorerStreamingService
         {
             foreach (var rendered in formatter.Format(evt))
                 yield return rendered;
-
-            if (evt.Kind == EtpClient.Models.ChannelEventKind.Remove)
-                break;
         }
     }
 

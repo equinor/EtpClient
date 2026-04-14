@@ -241,26 +241,71 @@ public sealed class SpectreExplorerUi : IExplorerUi
         return Task.FromResult(result);
     }
 
-    public void RenderStreamEvent(RenderedStreamEvent evt)
-    {
-        var kindColor = evt.EventKind switch
-        {
-            StreamEventKind.Data => "green",
-            StreamEventKind.DataChange => "yellow",
-            StreamEventKind.Remove => "red",
-            StreamEventKind.StatusChange => "blue",
-            _ => "white",
-        };
+    private int _lastStreamRenderLines;
 
-        AnsiConsole.MarkupLine(
-            $"[{kindColor}]{Markup.Escape(evt.ChannelName)}[/] " +
-            $"[grey]({Markup.Escape(evt.PrimaryIndexText)})[/] " +
-            $"[white]{Markup.Escape(evt.ValueText)}[/]");
+    public void ResetStreamView() => _lastStreamRenderLines = 0;
+
+    public void RenderStreamSnapshot(StreamViewSnapshot snapshot)
+    {
+        // On subsequent renders move cursor back to the start of the previous output
+        // and erase to end of screen. Using relative movement (\x1b[NA) keeps this
+        // correct even when the first render caused the terminal to scroll.
+        // Only emit raw ANSI when the terminal is interactive and supports escape sequences;
+        // redirected or non-ANSI output would otherwise show the codes as garbage.
+        if (_lastStreamRenderLines > 0 && !System.Console.IsOutputRedirected && AnsiConsole.Profile.Capabilities.Ansi)
+            System.Console.Write($"\x1b[{_lastStreamRenderLines}A\x1b[J");
+
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .AddColumn(new TableColumn("[grey]Channel[/]").LeftAligned())
+            .AddColumn(new TableColumn("[grey]Index[/]").RightAligned())
+            .AddColumn(new TableColumn("[grey]Value[/]").RightAligned())
+            .AddColumn(new TableColumn("[grey]Status[/]").LeftAligned());
+
+        foreach (var row in snapshot.Rows)
+        {
+            var statusColor = row.RowStatus switch
+            {
+                RowStatusField.Live => "green",
+                RowStatusField.Changed => "yellow",
+                RowStatusField.StatusChanged => "blue",
+                RowStatusField.Ended => "red",
+                _ => "grey",
+            };
+
+            table.AddRow(
+                Markup.Escape(row.ChannelName),
+                Markup.Escape(row.PrimaryIndexText),
+                Markup.Escape(row.ValueText),
+                $"[{statusColor}]{Markup.Escape(row.StatusText)}[/]");
+        }
+
+        AnsiConsole.Write(table);
+        AnsiConsole.MarkupLine("[grey]Press [bold]S[/] or [bold]Escape[/] to stop streaming.[/]");
+
+        // top-border(1) + header(1) + separator(1) + rows(N) + bottom-border(1) + hint(1)
+        _lastStreamRenderLines = snapshot.Rows.Count + 5;
     }
 
     public Task<bool> PromptStopStreamingAsync(CancellationToken ct = default)
     {
-        AnsiConsole.MarkupLine("[grey]Press [bold]S[/] to stop streaming, or wait for completion...[/]");
+        if (System.Console.IsInputRedirected)
+            return Task.FromResult(false);
+
+        try
+        {
+            if (System.Console.KeyAvailable)
+            {
+                var key = System.Console.ReadKey(intercept: true);
+                if (key.Key == ConsoleKey.S || key.Key == ConsoleKey.Escape)
+                    return Task.FromResult(true);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // No interactive console available; treat as not stopped.
+        }
+
         return Task.FromResult(false);
     }
 

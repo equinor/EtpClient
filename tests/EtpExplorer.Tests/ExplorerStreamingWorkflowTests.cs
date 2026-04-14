@@ -12,7 +12,7 @@ public sealed class ExplorerStreamingWorkflowTests
     // ── Start streaming: events rendered ──────────────────────────────────────
 
     [Fact]
-    public async Task RunAsync_StartStreaming_RendersIncomingDataEvents()
+    public async Task RunAsync_StartStreaming_RendersSnapshotForEachUpdate()
     {
         var channelId = 42L;
         var dataEvent = new EtpClient.Models.ChannelEvent
@@ -38,14 +38,17 @@ public sealed class ExplorerStreamingWorkflowTests
         var app = BuildApp(client, ui, selection);
         await app.RunAsync();
 
-        Assert.Single(ui.RenderedEvents);
-        Assert.Equal(channelId, ui.RenderedEvents[0].ChannelId);
-        Assert.Equal("RPM", ui.RenderedEvents[0].ChannelName);
-        Assert.Equal(StreamEventKind.Data, ui.RenderedEvents[0].EventKind);
+        // Initial snapshot + one update snapshot
+        Assert.True(ui.StreamSnapshots.Count >= 2);
+        var finalSnap = ui.StreamSnapshots.Last();
+        var row = Assert.Single(finalSnap.Rows);
+        Assert.Equal(channelId, row.ChannelId);
+        Assert.Equal("RPM", row.ChannelName);
+        Assert.Equal(RowStatusField.Live, row.RowStatus);
     }
 
     [Fact]
-    public async Task RunAsync_StartStreaming_RendersMultipleEvents()
+    public async Task RunAsync_StartStreaming_OneSnapshotPerEventPlusInitial()
     {
         var events = Enumerable.Range(1, 5).Select(i => new EtpClient.Models.ChannelEvent
         {
@@ -67,7 +70,8 @@ public sealed class ExplorerStreamingWorkflowTests
         var app = BuildApp(client, ui, selection);
         await app.RunAsync();
 
-        Assert.Equal(5, ui.RenderedEvents.Count);
+        // 1 initial render + 5 event renders + 1 final inactive render
+        Assert.Equal(7, ui.StreamSnapshots.Count);
     }
 
     // ── Stop streaming: user-initiated ────────────────────────────────────────
@@ -98,7 +102,7 @@ public sealed class ExplorerStreamingWorkflowTests
     // ── Attribution ───────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task RunAsync_StartStreaming_AttributesEventToCorrectEndpointName()
+    public async Task RunAsync_StartStreaming_SnapshotRowAttributedToCorrectEndpointName()
     {
         var client = BuildClientWithRoot();
         client.StreamEvents =
@@ -121,9 +125,10 @@ public sealed class ExplorerStreamingWorkflowTests
         var app = BuildApp(client, ui, selection);
         await app.RunAsync();
 
-        Assert.Single(ui.RenderedEvents);
-        Assert.Equal("TORQUE", ui.RenderedEvents[0].ChannelName);
-        Assert.Equal(10, ui.RenderedEvents[0].ChannelId);
+        var finalSnap = ui.StreamSnapshots.Last();
+        var row = Assert.Single(finalSnap.Rows);
+        Assert.Equal("TORQUE", row.ChannelName);
+        Assert.Equal(10, row.ChannelId);
     }
 
     // ── Cancellation ──────────────────────────────────────────────────────────
@@ -198,6 +203,226 @@ public sealed class ExplorerStreamingWorkflowTests
         Assert.Single(rendered);
         Assert.Equal("PI", rendered[0].ChannelName);
         Assert.Equal(StreamEventKind.Data, rendered[0].EventKind);
+    }
+
+    // ── US1: Fixed row list and alphabetical ordering ─────────────────────────
+
+    [Fact]
+    public async Task RunAsync_StartStreaming_InitialSnapshotHasOneRowPerSelectedEndpoint()
+    {
+        var client = BuildClientWithRoot();
+        client.StreamEvents = [];
+
+        var selection = new SelectionSetService();
+        selection.AddEndpoints([
+            BuildEndpoint(1, "eml:///ch/1", "RPM"),
+            BuildEndpoint(2, "eml:///ch/2", "WOB"),
+            BuildEndpoint(3, "eml:///ch/3", "TORQUE"),
+        ]);
+
+        var ui = new FakeExplorerUi();
+        ui.EnqueueRootNode(new RootNodeOption { Name = "witsml14", Uri = "eml:///witsml14" });
+        ui.EnqueueMainMenu(MainMenuAction.StartStreaming);
+        ui.EnqueueMainMenu(MainMenuAction.Exit);
+
+        var app = BuildApp(client, ui, selection);
+        await app.RunAsync();
+
+        var initial = ui.StreamSnapshots.First();
+        Assert.Equal(3, initial.Rows.Count);
+    }
+
+    [Fact]
+    public async Task RunAsync_StartStreaming_InitialSnapshotRowsAreAlphabetical()
+    {
+        var client = BuildClientWithRoot();
+        client.StreamEvents = [];
+
+        var selection = new SelectionSetService();
+        selection.AddEndpoints([
+            BuildEndpoint(1, "eml:///ch/1", "WOB"),
+            BuildEndpoint(2, "eml:///ch/2", "RPM"),
+            BuildEndpoint(3, "eml:///ch/3", "TORQUE"),
+        ]);
+
+        var ui = new FakeExplorerUi();
+        ui.EnqueueRootNode(new RootNodeOption { Name = "witsml14", Uri = "eml:///witsml14" });
+        ui.EnqueueMainMenu(MainMenuAction.StartStreaming);
+        ui.EnqueueMainMenu(MainMenuAction.Exit);
+
+        var app = BuildApp(client, ui, selection);
+        await app.RunAsync();
+
+        var initial = ui.StreamSnapshots.First();
+        Assert.Equal("RPM", initial.Rows[0].ChannelName);
+        Assert.Equal("TORQUE", initial.Rows[1].ChannelName);
+        Assert.Equal("WOB", initial.Rows[2].ChannelName);
+    }
+
+    [Fact]
+    public async Task RunAsync_StartStreaming_DataEventsDoNotAddRows()
+    {
+        // 3 data events for the same channel must not grow the row count
+        var events = Enumerable.Range(1, 3).Select(i => new EtpClient.Models.ChannelEvent
+        {
+            Kind = ChannelEventKind.Data,
+            DataItems = [new ChannelDataItem { ChannelId = 1, Indexes = [(long)i], Value = (double)i }],
+        }).ToList();
+
+        var client = BuildClientWithRoot();
+        client.StreamEvents = events;
+
+        var selection = new SelectionSetService();
+        selection.AddEndpoints([BuildEndpoint(1, "eml:///ch/1", "RPM")]);
+
+        var ui = new FakeExplorerUi();
+        ui.EnqueueRootNode(new RootNodeOption { Name = "witsml14", Uri = "eml:///witsml14" });
+        ui.EnqueueMainMenu(MainMenuAction.StartStreaming);
+        ui.EnqueueMainMenu(MainMenuAction.Exit);
+
+        var app = BuildApp(client, ui, selection);
+        await app.RunAsync();
+
+        Assert.All(ui.StreamSnapshots, snap => Assert.Single(snap.Rows));
+    }
+
+    // ── US2: Waiting state and in-place value updates ─────────────────────────
+
+    [Fact]
+    public async Task RunAsync_StartStreaming_InitialSnapshotRowsAreInWaitingState()
+    {
+        var client = BuildClientWithRoot();
+        client.StreamEvents = [];
+
+        var selection = new SelectionSetService();
+        selection.AddEndpoints([BuildEndpoint(1, "eml:///ch/1", "RPM")]);
+
+        var ui = new FakeExplorerUi();
+        ui.EnqueueRootNode(new RootNodeOption { Name = "witsml14", Uri = "eml:///witsml14" });
+        ui.EnqueueMainMenu(MainMenuAction.StartStreaming);
+        ui.EnqueueMainMenu(MainMenuAction.Exit);
+
+        var app = BuildApp(client, ui, selection);
+        await app.RunAsync();
+
+        var initial = ui.StreamSnapshots.First();
+        Assert.All(initial.Rows, row =>
+        {
+            Assert.Equal(RowStatusField.Waiting, row.RowStatus);
+            Assert.Equal("Waiting for data", row.StatusText);
+        });
+    }
+
+    [Fact]
+    public async Task RunAsync_StartStreaming_DataEventUpdatesRowToLiveState()
+    {
+        var client = BuildClientWithRoot();
+        client.StreamEvents =
+        [
+            new EtpClient.Models.ChannelEvent
+            {
+                Kind = ChannelEventKind.Data,
+                DataItems = [new ChannelDataItem { ChannelId = 1, Indexes = [500L], Value = 3.14 }],
+            },
+        ];
+
+        var selection = new SelectionSetService();
+        selection.AddEndpoints([BuildEndpoint(1, "eml:///ch/1", "RPM")]);
+
+        var ui = new FakeExplorerUi();
+        ui.EnqueueRootNode(new RootNodeOption { Name = "witsml14", Uri = "eml:///witsml14" });
+        ui.EnqueueMainMenu(MainMenuAction.StartStreaming);
+        ui.EnqueueMainMenu(MainMenuAction.Exit);
+
+        var app = BuildApp(client, ui, selection);
+        await app.RunAsync();
+
+        var finalSnap = ui.StreamSnapshots.Last();
+        Assert.Equal(RowStatusField.Live, finalSnap.Rows[0].RowStatus);
+    }
+
+    // ── US3: Lifecycle events and clean stop ──────────────────────────────────
+
+    [Fact]
+    public async Task RunAsync_StartStreaming_StatusChangeEventUpdatesStatusField()
+    {
+        var client = BuildClientWithRoot();
+        client.StreamEvents =
+        [
+            new EtpClient.Models.ChannelEvent
+            {
+                Kind = ChannelEventKind.StatusChange,
+                ChannelId = 1,
+                NewStatus = "Inactive",
+            },
+        ];
+
+        var selection = new SelectionSetService();
+        selection.AddEndpoints([BuildEndpoint(1, "eml:///ch/1", "RPM")]);
+
+        var ui = new FakeExplorerUi();
+        ui.EnqueueRootNode(new RootNodeOption { Name = "witsml14", Uri = "eml:///witsml14" });
+        ui.EnqueueMainMenu(MainMenuAction.StartStreaming);
+        ui.EnqueueMainMenu(MainMenuAction.Exit);
+
+        var app = BuildApp(client, ui, selection);
+        await app.RunAsync();
+
+        var finalSnap = ui.StreamSnapshots.Last();
+        Assert.Equal(RowStatusField.StatusChanged, finalSnap.Rows[0].RowStatus);
+    }
+
+    [Fact]
+    public async Task RunAsync_StartStreaming_RemoveEventKeepsRowVisibleWithEndedStatus()
+    {
+        var client = BuildClientWithRoot();
+        client.StreamEvents =
+        [
+            new EtpClient.Models.ChannelEvent
+            {
+                Kind = ChannelEventKind.Remove,
+                ChannelId = 1,
+                RemoveReason = "channel closed",
+            },
+        ];
+
+        var selection = new SelectionSetService();
+        selection.AddEndpoints([BuildEndpoint(1, "eml:///ch/1", "RPM")]);
+
+        var ui = new FakeExplorerUi();
+        ui.EnqueueRootNode(new RootNodeOption { Name = "witsml14", Uri = "eml:///witsml14" });
+        ui.EnqueueMainMenu(MainMenuAction.StartStreaming);
+        ui.EnqueueMainMenu(MainMenuAction.Exit);
+
+        var app = BuildApp(client, ui, selection);
+        await app.RunAsync();
+
+        var finalSnap = ui.StreamSnapshots.Last();
+        // Row must remain visible
+        Assert.Single(finalSnap.Rows);
+        Assert.Equal(RowStatusField.Ended, finalSnap.Rows[0].RowStatus);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenStreamEnds_SnapshotIsMarkedInactive()
+    {
+        var client = BuildClientWithRoot();
+        client.StreamEvents = [];
+
+        var selection = new SelectionSetService();
+        selection.AddEndpoints([BuildEndpoint(1, "eml:///ch/1", "RPM")]);
+
+        var ui = new FakeExplorerUi();
+        ui.EnqueueRootNode(new RootNodeOption { Name = "witsml14", Uri = "eml:///witsml14" });
+        ui.EnqueueMainMenu(MainMenuAction.StartStreaming);
+        ui.EnqueueMainMenu(MainMenuAction.Exit);
+
+        var app = BuildApp(client, ui, selection);
+        await app.RunAsync();
+
+        // After streaming, the snapshot must be inactive
+        var finalSnap = ui.StreamSnapshots.Last();
+        Assert.False(finalSnap.IsActive);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
