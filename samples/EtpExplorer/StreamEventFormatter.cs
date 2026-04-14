@@ -124,8 +124,8 @@ public sealed class StreamEventFormatter
     private static string FormatValue(object? value) => value switch
     {
         null => "null",
-        double d => d.ToString("0.##", CultureInfo.CurrentCulture),
-        float f => f.ToString("0.##", CultureInfo.CurrentCulture),
+        double d => d.ToString("0.##", CultureInfo.InvariantCulture),
+        float f => f.ToString("0.##", CultureInfo.InvariantCulture),
         int i => i.ToString(CultureInfo.InvariantCulture),
         long l => l.ToString(CultureInfo.InvariantCulture),
         bool b => b.ToString(),

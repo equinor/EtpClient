@@ -88,7 +88,7 @@ public sealed class ExplorerStreamRenderingTests
     }
 
     [Fact]
-    public void StreamEventFormatter_MultipleIndexes_JoinsWithComma()
+    public void StreamEventFormatter_MultipleIndexes_UsesFirstAsPrimaryIndex()
     {
         var selection = BuildSelection((1, "eml:///ch/1", "V"));
         var formatter = new StreamEventFormatter(selection);
@@ -102,8 +102,8 @@ public sealed class ExplorerStreamRenderingTests
         };
 
         var rendered = formatter.Format(evt);
-        Assert.Contains("100", rendered[0].PrimaryIndexText);
-        Assert.Contains("200", rendered[0].PrimaryIndexText);
+        // Only the first (primary) index is displayed
+        Assert.Equal("100", rendered[0].PrimaryIndexText);
     }
 
     // ── Non-data event kinds ──────────────────────────────────────────────────
