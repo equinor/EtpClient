@@ -250,7 +250,9 @@ public sealed class SpectreExplorerUi : IExplorerUi
         // On subsequent renders move cursor back to the start of the previous output
         // and erase to end of screen. Using relative movement (\x1b[NA) keeps this
         // correct even when the first render caused the terminal to scroll.
-        if (_lastStreamRenderLines > 0)
+        // Only emit raw ANSI when the terminal is interactive and supports escape sequences;
+        // redirected or non-ANSI output would otherwise show the codes as garbage.
+        if (_lastStreamRenderLines > 0 && !System.Console.IsOutputRedirected && AnsiConsole.Profile.Capabilities.Ansi)
             System.Console.Write($"\x1b[{_lastStreamRenderLines}A\x1b[J");
 
         var table = new Table()
