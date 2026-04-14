@@ -35,20 +35,32 @@
 
 ---
 
-## 3. Triggering the Manual NuGet Publish
+## 3. Publishing the NuGet Package
 
-> **Requires**: Maintainer-level access and a semantic version number.
+The library version is declared as `<VersionPrefix>` in `Directory.Build.props` at the repository root. This is the single source of truth for the published version.
+
+### Automatic publish on version bump
+
+1. In your feature branch, open `Directory.Build.props` and bump `<VersionPrefix>` (e.g. `0.1.0` → `0.2.0`).
+2. Include the change in a PR and get it reviewed.
+3. Merge the PR to `main`.
+4. The **Publish NuGet** workflow fires automatically because `Directory.Build.props` changed on `main`.
+5. The workflow resolves the version from `Directory.Build.props`, packs, and pushes to GitHub Packages.
+6. Navigate to the repository's **Packages** tab — the new version should appear within a few minutes.
+
+### Manual dispatch (override or pre-release)
+
+> **Requires**: Maintainer-level access.
 
 1. Navigate to **Actions** → **Publish NuGet** in the repository sidebar.
 2. Click **Run workflow**.
 3. In the dropdown, ensure the **`main`** branch is selected.
-4. Enter the semantic version to publish (e.g. `1.0.0`).
+4. Optionally enter a version override (e.g. `1.0.0-alpha.1`). Leave empty to publish the version from `Directory.Build.props`.
 5. Click **Run workflow**.
 6. The workflow stages:
-   - **Restore** → **Build (Release)** → **Pack** → **Push to GitHub Packages**
-7. When complete, navigate to the repository's **Packages** tab. The `EtpClient` package should be listed with the version you supplied.
+   - **Resolve version** → **Restore** → **Build (Release)** → **Pack** → **Push to GitHub Packages**
 
-**Re-publishing the same version**: The push step uses `--skip-duplicate`, so pushing an already-published version is a no-op (exits 0). To overwrite an existing version you must delete the existing package version from GitHub Packages first.
+**Re-publishing the same version**: The push step uses `--skip-duplicate`, so pushing an already-published version is a no-op (exits 0). To overwrite an existing version you must delete it from GitHub Packages first.
 
 ---
 

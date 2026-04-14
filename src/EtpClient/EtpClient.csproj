@@ -7,7 +7,7 @@
 
     <!-- NuGet package metadata -->
     <PackageId>EtpClient</PackageId>
-    <PackageVersion>0.1.0</PackageVersion>
+    <!-- Version is set centrally in Directory.Build.props via VersionPrefix -->
     <Authors>Equinor</Authors>
     <Description>A .NET 10 ETP v1.1 client library for authenticated session setup, Discovery traversal, and Protocol 1 ChannelStreaming.</Description>
     <RepositoryUrl>https://github.com/equinor/EtpClient</RepositoryUrl>

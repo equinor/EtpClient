@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- Centralized library version. Bump this before merging a release PR.
+         publish-nuget.yml triggers automatically on push to main when this file
+         changes, and uses this value as the published package version. -->
+    <VersionPrefix>0.1.0</VersionPrefix>
+  </PropertyGroup>
+</Project>

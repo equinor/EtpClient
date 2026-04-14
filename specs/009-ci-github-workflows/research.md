@@ -112,7 +112,7 @@ Add the following properties to the `<PropertyGroup>` in `src/EtpClient/EtpClien
 
 ```xml
 <PackageId>EtpClient</PackageId>
-<PackageVersion>0.1.0</PackageVersion>
+<!-- Version is set centrally in Directory.Build.props via VersionPrefix -->
 <Authors>Equinor</Authors>
 <Description>A .NET 10 ETP v1.1 client library for authenticated session setup, Discovery traversal, and Protocol 1 ChannelStreaming.</Description>
 <RepositoryUrl>https://github.com/equinor/EtpClient</RepositoryUrl>
@@ -121,21 +121,48 @@ Add the following properties to the `<PropertyGroup>` in `src/EtpClient/EtpClien
 <PackageReadmeFile>README.md</PackageReadmeFile>
 ```
 
-`PackageVersion` defaults to `0.1.0` in the csproj. The manual publish workflow overrides it at pack-time with `-p:PackageVersion=${{ inputs.version }}`.
+The version is NOT declared in `EtpClient.csproj`. Instead, `Directory.Build.props` at the repository root declares:
+
+```xml
+<VersionPrefix>0.1.0</VersionPrefix>
+```
+
+MSBuild automatically imports `Directory.Build.props` for every project in the tree and derives `PackageVersion` from `VersionPrefix`. A maintainer bumps the version by editing this single file.
+
+`PackageVersion` defaults to the `VersionPrefix` from `Directory.Build.props`. The manual publish workflow can override it at pack-time with `-p:PackageVersion=<value>` (e.g. for pre-releases).
 
 ### Rationale
 - `PackageId` and `Authors` are required for a well-formed NuGet package
-- `Description` is displayed on nuget.org / GitHub Packages; missing it degrades discoverability
+- `Description` is displayed on GitHub Packages; missing it degrades discoverability
 - `RepositoryUrl` allows package consumers to navigate to source
-- `PackageLicenseExpression` communicates the license (MIT is consistent with the LICENSE file)
-- `PackageReadmeFile` surfaces the README in NuGet clients via `<None Include="../../README.md" Pack="true" PackagePath="\"/>`
+- `PackageLicenseExpression` communicates the license (Apache-2.0 matches the LICENSE file)
+- `PackageReadmeFile` surfaces the README in NuGet clients
+- `Directory.Build.props` is the single file to edit when releasing a new version
 
 ---
 
 ## 5. NuGet Publish Workflow
 
 ### Decision
-Separate file `publish-nuget.yml` with `workflow_dispatch`, producing a single `publish` job.
+Separate file `publish-nuget.yml` with two triggers:
+1. **`push` to `main` with `paths: ['Directory.Build.props']`** — fires automatically when a PR that bumps `VersionPrefix` is merged.
+2. **`workflow_dispatch`** with an optional `version` input — for manual re-publish or pre-release overrides.
+
+### Version Resolution
+A `Resolve package version` step runs before `dotnet pack`:
+
+```bash
+if [ -n "${{ inputs.version }}" ]; then
+  echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
+else
+  VERSION=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
+  echo "value=$VERSION" >> $GITHUB_OUTPUT
+fi
+```
+
+- When triggered by a `push` event, `inputs.version` is empty → version is read from `Directory.Build.props`.
+- When triggered manually with a version → that value is used (allows pre-release override).
+- When triggered manually without a version → version is read from `Directory.Build.props` (idiomatic re-publish).
 
 ### Authentication
 GitHub Package Registry requires NuGet authentication. The `GITHUB_TOKEN` is sufficient when:
@@ -192,6 +219,8 @@ The edge case in the spec (skipped-but-not-failing) is handled correctly by defa
 | NuGet auth | Built-in `GITHUB_TOKEN` + `permissions: packages: write` |
 | SDK version | `10.0.x` in `actions/setup-dotnet@v4` |
 | NuGet metadata | `PackageId`, `Authors`, `Description`, `RepositoryUrl`, `RepositoryType`, license, readme in `EtpClient.csproj` |
+| Version source | `<VersionPrefix>` in `Directory.Build.props` (single source of truth) |
+| Publish trigger | Auto on `push` to `main` when `Directory.Build.props` changes; manual `workflow_dispatch` with optional override |
 | Status badge | `ci.yml` main-branch badge in README after `# EtpClient` heading |
 | Concurrency | `cancel-in-progress: true` scoped to `github.ref` |
 | Restore strategy | `dotnet restore EtpClient.slnx` once per job, then `--no-restore` on all subsequent steps |

@@ -101,21 +101,28 @@ This badge is embedded in `README.md` immediately after the `# EtpClient` headin
 
 ---
 
-## `publish-nuget.yml` — Manual NuGet Publish Workflow
+## `publish-nuget.yml` — NuGet Publish Workflow
 
-### Trigger
+### Triggers
 
-```
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Semantic version to publish (e.g. 1.0.0)'
-        required: true
-        type: string
-```
+| Event | Condition |
+|---|---|
+| `push` | Branch `main`; path `Directory.Build.props` only — fires when a version bump is merged |
+| `workflow_dispatch` | Manual dispatch with an optional `version` input for override or pre-release |
 
-**Only manual trigger** — no push or schedule events. The `version` input is required; the workflow will not start without it.
+### Inputs (workflow_dispatch only)
+
+| Input | Required | Default | Description |
+|---|---|---|---|
+| `version` | No | (none) | Semantic version override. Omit to use `<VersionPrefix>` from `Directory.Build.props`. Supply to publish a pre-release or to republish a specific version. |
+
+### Version Resolution
+
+The `publish` job resolves the version to publish before packing:
+- If `inputs.version` is non-empty → use it (manual override path)
+- Otherwise → extract `<VersionPrefix>` from `Directory.Build.props` using `grep`
+
+This means both trigger modes publish the version declared in `Directory.Build.props` by default, keeping the version in a single location.
 
 ### Required Permissions
 
@@ -135,11 +142,12 @@ permissions:
 **Steps**:
 
 1. Checkout repository
-2. Set up .NET 10 SDK
-3. Restore packages (`dotnet restore src/EtpClient/EtpClient.csproj`)
-4. Build library in Release (`dotnet build src/EtpClient/EtpClient.csproj --configuration Release --no-restore`)
-5. Pack library (`dotnet pack src/EtpClient/EtpClient.csproj --configuration Release --no-build -p:PackageVersion=${{ inputs.version }}`)
-6. Push to GitHub Packages (`dotnet nuget push "src/EtpClient/bin/Release/*.nupkg" --source "https://nuget.pkg.github.com/equinor/index.json" --api-key "${{ secrets.GITHUB_TOKEN }}" --skip-duplicate`)
+2. Set up .NET 10 SDK (`10.0.x`)
+3. Resolve package version (reads `Directory.Build.props` or uses `inputs.version` override)
+4. Restore packages (`dotnet restore src/EtpClient/EtpClient.csproj`)
+5. Build library in Release (`dotnet build src/EtpClient/EtpClient.csproj --configuration Release --no-restore`)
+6. Pack library (`dotnet pack ... --no-build -p:PackageVersion=<resolved-version>`)
+7. Push to GitHub Packages (`dotnet nuget push ... --skip-duplicate`)
 
 **Pass condition**: All steps exit 0; package is visible under the repository's Packages page.
 
@@ -155,9 +163,21 @@ permissions:
 
 ---
 
-## `EtpClient.csproj` Metadata Contract
+## `Directory.Build.props` and `EtpClient.csproj` Metadata Contract
 
-The following properties MUST be present in `EtpClient.csproj` before the publish workflow is useful:
+`Directory.Build.props` at the repository root is the **single source of truth** for the library version:
+
+```xml
+<Project>
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+  </PropertyGroup>
+</Project>
+```
+
+To release a new version: bump `VersionPrefix` in a PR, merge to `main`, and `publish-nuget.yml` fires automatically.
+
+The following properties MUST be present in `EtpClient.csproj` (version is NOT declared here):
 
 ```xml
 <PackageId>EtpClient</PackageId>
