@@ -37,6 +37,7 @@ public sealed class ExplorerEndpointResolver
                 DataType = ch.DataType,
                 IndexType = ch.IndexType,
                 Status = ch.Status,
+                Definition = ch,
             })
             .ToList();
     }

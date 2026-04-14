@@ -65,9 +65,17 @@ public interface IExplorerUi
         CancellationToken ct = default);
 
     /// <summary>
-    /// Renders one live streaming event to the output.
+    /// Resets the stream view origin so the next <see cref="RenderStreamSnapshot"/> call
+    /// starts a fresh in-place render from the current cursor position.
+    /// Must be called once before the first render of each streaming session.
     /// </summary>
-    void RenderStreamEvent(RenderedStreamEvent evt);
+    void ResetStreamView();
+
+    /// <summary>
+    /// Renders the current fixed-row stream view snapshot.
+    /// Called once at stream start and after each update arrives.
+    /// </summary>
+    void RenderStreamSnapshot(StreamViewSnapshot snapshot);
 
     /// <summary>
     /// Renders an inline streaming stop/exit prompt while streaming is active.

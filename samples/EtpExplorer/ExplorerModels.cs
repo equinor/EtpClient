@@ -125,6 +125,8 @@ public sealed class ResolvedStreamableEndpoint
     public required string DataType { get; init; }
     public required string IndexType { get; init; }
     public required string Status { get; init; }
+    /// <summary>Full channel metadata from the describe result. Used for index formatting.</summary>
+    public EtpClient.Models.ChannelDefinition? Definition { get; init; }
 }
 
 // ── Selection Set ─────────────────────────────────────────────────────────────
@@ -162,6 +164,40 @@ public sealed class RenderedStreamEvent
     public required string ValueText { get; init; }
     public required StreamEventKind EventKind { get; init; }
     public required DateTimeOffset ObservedAtUtc { get; init; }
+}
+
+// ── Stream Snapshot ───────────────────────────────────────────────────────────
+
+/// <summary>Lifecycle state shown in the dedicated per-row status field.</summary>
+public enum RowStatusField
+{
+    Waiting,
+    Live,
+    Changed,
+    StatusChanged,
+    Ended,
+}
+
+/// <summary>One persistent row in the fixed streaming list.</summary>
+public sealed class StreamRowSnapshot
+{
+    public required long ChannelId { get; init; }
+    public required string ChannelName { get; init; }
+    public required string SourceResourceUri { get; init; }
+    public string PrimaryIndexText { get; set; } = string.Empty;
+    public string ValueText { get; set; } = string.Empty;
+    public string StatusText { get; set; } = "Waiting for data";
+    public RowStatusField RowStatus { get; set; } = RowStatusField.Waiting;
+    public StreamEventKind? LastEventKind { get; set; }
+    public DateTimeOffset? LastUpdatedAtUtc { get; set; }
+}
+
+/// <summary>The complete fixed-row view rendered during one active streaming session.</summary>
+public sealed class StreamViewSnapshot
+{
+    public required IReadOnlyList<StreamRowSnapshot> Rows { get; init; }
+    public required DateTimeOffset StartedAtUtc { get; init; }
+    public bool IsActive { get; set; } = true;
 }
 
 // ── Column Search ─────────────────────────────────────────────────────────────

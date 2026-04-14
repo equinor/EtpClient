@@ -225,6 +225,246 @@ public sealed class ExplorerStreamRenderingTests
         Assert.Equal(sourceUri, rendered[0].SourceResourceUri);
     }
 
+    // ── US1: Fixed-row initialization and alphabetical ordering ──────────────
+
+    [Fact]
+    public void BuildInitialSnapshot_EmptySelection_ProducesNoRows()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var snap = svc.BuildInitialSnapshot([]);
+        Assert.Empty(snap.Rows);
+        Assert.True(snap.IsActive);
+    }
+
+    [Fact]
+    public void BuildInitialSnapshot_CreatesOneRowPerSelectedEndpoint()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection(
+            (1, "eml:///ch/1", "RPM"),
+            (2, "eml:///ch/2", "WOB"),
+            (3, "eml:///ch/3", "TORQUE"));
+
+        var snap = svc.BuildInitialSnapshot(selection);
+
+        Assert.Equal(3, snap.Rows.Count);
+    }
+
+    [Fact]
+    public void BuildInitialSnapshot_RowsAreSortedAlphabetically()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection(
+            (1, "eml:///ch/1", "WOB"),
+            (2, "eml:///ch/2", "RPM"),
+            (3, "eml:///ch/3", "TORQUE"));
+
+        var snap = svc.BuildInitialSnapshot(selection);
+
+        Assert.Equal("RPM", snap.Rows[0].ChannelName);
+        Assert.Equal("TORQUE", snap.Rows[1].ChannelName);
+        Assert.Equal("WOB", snap.Rows[2].ChannelName);
+    }
+
+    [Fact]
+    public void BuildInitialSnapshot_EachRowStartsInWaitingState()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection(
+            (1, "eml:///ch/1", "RPM"),
+            (2, "eml:///ch/2", "WOB"));
+
+        var snap = svc.BuildInitialSnapshot(selection);
+
+        Assert.All(snap.Rows, row =>
+        {
+            Assert.Equal(RowStatusField.Waiting, row.RowStatus);
+            Assert.Equal("Waiting for data", row.StatusText);
+            Assert.Empty(row.PrimaryIndexText);
+            Assert.Empty(row.ValueText);
+        });
+    }
+
+    // ── US2: In-place row updates and waiting-to-live transition ─────────────
+
+    [Fact]
+    public void ApplyEvent_DataEvent_UpdatesRowIndexAndValue()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection((1, "eml:///ch/1", "RPM"));
+        var snap = svc.BuildInitialSnapshot(selection);
+
+        var update = new RenderedStreamEvent
+        {
+            ChannelId = 1,
+            ChannelName = "RPM",
+            SourceResourceUri = "eml:///src",
+            PrimaryIndexText = "1000",
+            ValueText = "42.5",
+            EventKind = StreamEventKind.Data,
+            ObservedAtUtc = DateTimeOffset.UtcNow,
+        };
+
+        svc.ApplyEvent(snap, update);
+
+        var row = snap.Rows[0];
+        Assert.Equal("1000", row.PrimaryIndexText);
+        Assert.Equal("42.5", row.ValueText);
+        Assert.Equal(RowStatusField.Live, row.RowStatus);
+    }
+
+    [Fact]
+    public void ApplyEvent_DataEvent_TransitionsStatusFromWaitingToLive()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection((1, "eml:///ch/1", "RPM"));
+        var snap = svc.BuildInitialSnapshot(selection);
+
+        Assert.Equal(RowStatusField.Waiting, snap.Rows[0].RowStatus);
+
+        var update = new RenderedStreamEvent
+        {
+            ChannelId = 1,
+            ChannelName = "RPM",
+            SourceResourceUri = "eml:///src",
+            PrimaryIndexText = "1",
+            ValueText = "1.0",
+            EventKind = StreamEventKind.Data,
+            ObservedAtUtc = DateTimeOffset.UtcNow,
+        };
+
+        svc.ApplyEvent(snap, update);
+
+        Assert.Equal(RowStatusField.Live, snap.Rows[0].RowStatus);
+    }
+
+    [Fact]
+    public void ApplyEvent_RepeatedDataEvents_UpdateSameRowInPlace()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection((1, "eml:///ch/1", "RPM"));
+        var snap = svc.BuildInitialSnapshot(selection);
+
+        for (var i = 1; i <= 5; i++)
+        {
+            svc.ApplyEvent(snap, new RenderedStreamEvent
+            {
+                ChannelId = 1,
+                ChannelName = "RPM",
+                SourceResourceUri = "eml:///src",
+                PrimaryIndexText = i.ToString(),
+                ValueText = i.ToString(),
+                EventKind = StreamEventKind.Data,
+                ObservedAtUtc = DateTimeOffset.UtcNow,
+            });
+        }
+
+        Assert.Single(snap.Rows);
+        Assert.Equal("5", snap.Rows[0].PrimaryIndexText);
+        Assert.Equal("5", snap.Rows[0].ValueText);
+    }
+
+    [Fact]
+    public void ApplyEvent_UnknownChannelId_DoesNotCreateExtraRow()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection((1, "eml:///ch/1", "RPM"));
+        var snap = svc.BuildInitialSnapshot(selection);
+
+        svc.ApplyEvent(snap, new RenderedStreamEvent
+        {
+            ChannelId = 999,
+            ChannelName = "Unknown",
+            SourceResourceUri = "eml:///src",
+            PrimaryIndexText = "1",
+            ValueText = "1",
+            EventKind = StreamEventKind.Data,
+            ObservedAtUtc = DateTimeOffset.UtcNow,
+        });
+
+        Assert.Single(snap.Rows);
+    }
+
+    // ── US3: Lifecycle status field and remove-row persistence ───────────────
+
+    [Fact]
+    public void ApplyEvent_StatusChange_UpdatesStatusFieldOnly()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection((1, "eml:///ch/1", "RPM"));
+        var snap = svc.BuildInitialSnapshot(selection);
+        snap.Rows[0].PrimaryIndexText = "50";
+        snap.Rows[0].ValueText = "12.5";
+
+        svc.ApplyEvent(snap, new RenderedStreamEvent
+        {
+            ChannelId = 1,
+            ChannelName = "RPM",
+            SourceResourceUri = "eml:///src",
+            PrimaryIndexText = string.Empty,
+            ValueText = "status: Inactive",
+            EventKind = StreamEventKind.StatusChange,
+            ObservedAtUtc = DateTimeOffset.UtcNow,
+        });
+
+        var row = snap.Rows[0];
+        Assert.Equal(RowStatusField.StatusChanged, row.RowStatus);
+        Assert.Equal("status: Inactive", row.StatusText);
+        // Index and value are preserved
+        Assert.Equal("50", row.PrimaryIndexText);
+        Assert.Equal("12.5", row.ValueText);
+    }
+
+    [Fact]
+    public void ApplyEvent_RemoveEvent_MarksRowEndedWithoutDeletingIt()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection((1, "eml:///ch/1", "RPM"));
+        var snap = svc.BuildInitialSnapshot(selection);
+
+        svc.ApplyEvent(snap, new RenderedStreamEvent
+        {
+            ChannelId = 1,
+            ChannelName = "RPM",
+            SourceResourceUri = "eml:///src",
+            PrimaryIndexText = string.Empty,
+            ValueText = "(removed)",
+            EventKind = StreamEventKind.Remove,
+            ObservedAtUtc = DateTimeOffset.UtcNow,
+        });
+
+        Assert.Single(snap.Rows);
+        Assert.Equal(RowStatusField.Ended, snap.Rows[0].RowStatus);
+        Assert.Equal("Ended", snap.Rows[0].StatusText);
+    }
+
+    [Fact]
+    public void ApplyEvent_DataChange_MarkRowChangedWithoutTouchingIndexOrValue()
+    {
+        var svc = new ExplorerStreamingService(NullLogger<ExplorerStreamingService>.Instance);
+        var selection = BuildSelection((1, "eml:///ch/1", "RPM"));
+        var snap = svc.BuildInitialSnapshot(selection);
+        snap.Rows[0].PrimaryIndexText = "100";
+        snap.Rows[0].ValueText = "7.7";
+
+        svc.ApplyEvent(snap, new RenderedStreamEvent
+        {
+            ChannelId = 1,
+            ChannelName = "RPM",
+            SourceResourceUri = "eml:///src",
+            PrimaryIndexText = "100–200",
+            ValueText = "(changed)",
+            EventKind = StreamEventKind.DataChange,
+            ObservedAtUtc = DateTimeOffset.UtcNow,
+        });
+
+        var row = snap.Rows[0];
+        Assert.Equal(RowStatusField.Changed, row.RowStatus);
+        // PrimaryIndexText and ValueText are NOT replaced by DataChange
+        Assert.Equal("100", row.PrimaryIndexText);
+        Assert.Equal("7.7", row.ValueText);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static IReadOnlyList<SelectedEndpoint> BuildSelection(

@@ -70,7 +70,7 @@ public sealed class StreamEventFormatter
             ChannelId = item.ChannelId,
             ChannelName = se?.Endpoint.ChannelName ?? $"channel:{item.ChannelId}",
             SourceResourceUri = se?.Endpoint.SourceResourceUri ?? string.Empty,
-            PrimaryIndexText = FormatIndexes(item.Indexes),
+            PrimaryIndexText = FormatPrimaryIndex(item.Indexes, se?.Endpoint.Definition),
             ValueText = FormatValue(item.Value),
             EventKind = StreamEventKind.Data,
             ObservedAtUtc = observedAt,
@@ -98,18 +98,34 @@ public sealed class StreamEventFormatter
         };
     }
 
-    private static string FormatIndexes(IReadOnlyList<long> indexes) => indexes.Count switch
+    private static string FormatPrimaryIndex(IReadOnlyList<long> indexes, EtpClient.Models.ChannelDefinition? definition)
     {
-        0 => "-",
-        1 => indexes[0].ToString(),
-        _ => string.Join(", ", indexes),
-    };
+        if (indexes.Count == 0)
+            return "-";
+
+        var raw = indexes[0];
+
+        if (definition is null)
+            return raw.ToString(CultureInfo.InvariantCulture);
+
+        var interpreted = ChannelIndexValueConverter.Interpret(raw, definition);
+        return interpreted.Kind switch
+        {
+            ChannelIndexKind.Time => interpreted.UtcTimestamp is { } ts
+                ? ts.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture)
+                : raw.ToString(CultureInfo.InvariantCulture),
+            ChannelIndexKind.Depth => interpreted.ScaledDepthValue is { } depth
+                ? $"{depth.ToString("0.##", CultureInfo.CurrentCulture)}{interpreted.DisplayUnit}"
+                : raw.ToString(CultureInfo.InvariantCulture),
+            _ => interpreted.FallbackValue ?? raw.ToString(CultureInfo.InvariantCulture),
+        };
+    }
 
     private static string FormatValue(object? value) => value switch
     {
         null => "null",
-        double d => d.ToString("G", CultureInfo.InvariantCulture),
-        float f => f.ToString("G", CultureInfo.InvariantCulture),
+        double d => d.ToString("0.##", CultureInfo.CurrentCulture),
+        float f => f.ToString("0.##", CultureInfo.CurrentCulture),
         int i => i.ToString(CultureInfo.InvariantCulture),
         long l => l.ToString(CultureInfo.InvariantCulture),
         bool b => b.ToString(),

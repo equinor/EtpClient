@@ -25,7 +25,6 @@ The repository contains:
 ## Work in progress:
 
 - (Sample) Complete the EtpExplorer sample application. This is an interactive console application for navigating a ETP server which supports streaming data to the console. This is still a bit rough in the edges
-- Publish a re-usable package of the library (nuget.org or github package repository) to make it easier to use in other projects
 
 ## Quick overview
 
@@ -156,7 +155,9 @@ Interactive console explorer for browsing an ETP server:
 - connect and discover root nodes
 - browse resources in a pane-style interface
 - select streamable endpoints
-- start live streaming interactively
+- start live streaming with a **fixed-row view**: one persistent row per selected endpoint,
+  sorted alphabetically, showing `Waiting for data` until the first measurement arrives and
+  updating the index, value, and status fields in place as new events come in
 
 Run it with:
 
@@ -178,6 +179,7 @@ The `specs/` folder contains focused quickstarts for the major library slices:
 | `specs/006-format-channel-indexes/quickstart.md` | Interpreting and formatting channel index values |
 | `specs/007-add-etp-explorer/quickstart.md` | Interactive explorer sample usage |
 | `specs/008-search-column-filter/quickstart.md` | Planned explorer column search and filtering workflow |
+| `specs/010-fix-streaming-list/quickstart.md` | Fixed-row streaming list validation steps |
 
 ## Build and test
 

@@ -21,7 +21,7 @@ public class FakeExplorerUi : IExplorerUi
     public List<string> StatusMessages { get; } = new();
     public List<string> ErrorMessages { get; } = new();
     public List<string> ConfigErrorMessages { get; } = new();
-    public List<RenderedStreamEvent> RenderedEvents { get; } = new();
+    public List<StreamViewSnapshot> StreamSnapshots { get; } = new();
     public List<ExplorerSessionState> BrowseSnapshots { get; } = new();
 
     // ── Queuing helpers ───────────────────────────────────────────────────────
@@ -120,7 +120,9 @@ public class FakeExplorerUi : IExplorerUi
         return Task.FromResult(_removeEndpointResponses.Dequeue());
     }
 
-    public void RenderStreamEvent(RenderedStreamEvent evt) => RenderedEvents.Add(evt);
+    public void ResetStreamView() { }
+
+    public void RenderStreamSnapshot(StreamViewSnapshot snapshot) => StreamSnapshots.Add(snapshot);
 
     public Task<bool> PromptStopStreamingAsync(CancellationToken ct = default)
     {
