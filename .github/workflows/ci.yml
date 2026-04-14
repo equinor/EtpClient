@@ -1,0 +1,178 @@
+# CI workflow for EtpClient
+#
+# Triggers on pull requests and pushes to main. Uses path filtering so that
+# only the jobs relevant to the changed component(s) run. A change to the
+# core library or central package versions triggers all three jobs because
+# every component depends on them.
+#
+# Jobs:
+#   changes       - Detects which components changed and emits boolean outputs
+#   library       - Builds and tests src/EtpClient + unit/integration test projects
+#   sample-console - Builds and tests samples/EtpClient.SampleConsole + its tests
+#   etp-explorer  - Builds and tests samples/EtpExplorer + its tests
+
+name: CI
+
+# Triggers: pull requests and direct pushes to main, but only when
+# code, tests, samples, central package versions, or this workflow change.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'Directory.Packages.props'
+      - '.github/workflows/ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'Directory.Packages.props'
+      - '.github/workflows/ci.yml'
+
+# Cancel in-flight runs for the same ref when a new commit is pushed.
+# This keeps PRs responsive and avoids wasting runner minutes on stale runs.
+# For pushes to main, preserve the in-flight run so main history and badges
+# reflect completed runs instead of being cancelled by a subsequent push.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Detect changed paths and emit per-component boolean outputs.
+  # All downstream jobs depend on this job.
+  # ---------------------------------------------------------------------------
+  changes:
+    name: Detect changed components
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      library: ${{ steps.filter.outputs.library }}
+      sample-console: ${{ steps.filter.outputs['sample-console'] }}
+      etp-explorer: ${{ steps.filter.outputs['etp-explorer'] }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect path changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            library:
+              - 'src/EtpClient/**'
+              - 'tests/EtpClient.UnitTests/**'
+              - 'tests/EtpClient.IntegrationTests/**'
+              - 'Directory.Packages.props'
+              - '.github/workflows/ci.yml'
+            sample-console:
+              - 'src/EtpClient/**'
+              - 'samples/EtpClient.SampleConsole/**'
+              - 'tests/EtpClient.SampleConsole.Tests/**'
+              - 'Directory.Packages.props'
+              - '.github/workflows/ci.yml'
+            etp-explorer:
+              - 'src/EtpClient/**'
+              - 'samples/EtpExplorer/**'
+              - 'tests/EtpExplorer.Tests/**'
+              - 'Directory.Packages.props'
+              - '.github/workflows/ci.yml'
+
+  # ---------------------------------------------------------------------------
+  # Build and test the EtpClient core library.
+  # Runs EtpClient.UnitTests and EtpClient.IntegrationTests.
+  # Integration tests use an in-process TestHost — no external server needed.
+  # ---------------------------------------------------------------------------
+  library:
+    name: Library
+    needs: changes
+    if: needs.changes.outputs.library == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # .NET SDK version — update this single line when upgrading to a new major/minor
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet packages
+        run: dotnet restore EtpClient.slnx
+
+      - name: Build unit test project (Release)
+        run: dotnet build tests/EtpClient.UnitTests/EtpClient.UnitTests.csproj --configuration Release --no-restore
+
+      - name: Build integration test project (Release)
+        run: dotnet build tests/EtpClient.IntegrationTests/EtpClient.IntegrationTests.csproj --configuration Release --no-restore
+
+      - name: Run unit tests
+        run: dotnet test tests/EtpClient.UnitTests/EtpClient.UnitTests.csproj --configuration Release --no-build
+
+      - name: Run integration tests
+        run: dotnet test tests/EtpClient.IntegrationTests/EtpClient.IntegrationTests.csproj --configuration Release --no-build --blame-hang-timeout 60s
+
+  # ---------------------------------------------------------------------------
+  # Build and test the EtpClient.SampleConsole sample application.
+  # Runs EtpClient.SampleConsole.Tests only.
+  # ---------------------------------------------------------------------------
+  sample-console:
+    name: Sample Console
+    needs: changes
+    if: needs.changes.outputs['sample-console'] == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # .NET SDK version — update this single line when upgrading to a new major/minor
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet packages
+        run: dotnet restore EtpClient.slnx
+
+      - name: Build SampleConsole test project (Release)
+        run: dotnet build tests/EtpClient.SampleConsole.Tests/EtpClient.SampleConsole.Tests.csproj --configuration Release --no-restore
+
+      - name: Run SampleConsole tests
+        run: dotnet test tests/EtpClient.SampleConsole.Tests/EtpClient.SampleConsole.Tests.csproj --configuration Release --no-build
+
+  # ---------------------------------------------------------------------------
+  # Build and test the EtpExplorer sample application.
+  # Runs EtpExplorer.Tests only.
+  # ---------------------------------------------------------------------------
+  etp-explorer:
+    name: ETP Explorer
+    needs: changes
+    if: needs.changes.outputs['etp-explorer'] == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # .NET SDK version — update this single line when upgrading to a new major/minor
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet packages
+        run: dotnet restore EtpClient.slnx
+
+      - name: Build EtpExplorer test project (Release)
+        run: dotnet build tests/EtpExplorer.Tests/EtpExplorer.Tests.csproj --configuration Release --no-restore
+
+      - name: Run EtpExplorer tests
+        run: dotnet test tests/EtpExplorer.Tests/EtpExplorer.Tests.csproj --configuration Release --no-build

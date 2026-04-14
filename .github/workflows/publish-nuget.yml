@@ -1,0 +1,81 @@
+# NuGet publish workflow for EtpClient
+#
+# Triggered in two ways:
+#   1. Automatically: when Directory.Build.props changes on a push to main
+#      (i.e. the version was bumped as part of a merged PR). The version is
+#      read directly from <VersionPrefix> in Directory.Build.props.
+#   2. Manually: via workflow_dispatch with an optional version override.
+#      Omit the version to publish whatever is in Directory.Build.props;
+#      supply a value to override (e.g. for a pre-release).
+#
+# Authentication uses the built-in GITHUB_TOKEN — no PAT or repository secret
+# is required.
+
+name: Publish NuGet
+
+on:
+  # Auto-publish when the version in Directory.Build.props changes on main
+  push:
+    branches: [main]
+    paths:
+      - 'Directory.Build.props'
+
+  # Manual override: leave version empty to use Directory.Build.props
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version override (leave empty to use Directory.Build.props)'
+        required: false
+        type: string
+
+# Read repository contents, write to GitHub Packages
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Pack the EtpClient library and push it to the GitHub Package Repository.
+  # ---------------------------------------------------------------------------
+  publish:
+    name: Pack and publish EtpClient
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # .NET SDK version — update this single line when upgrading to a new major/minor
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Resolve the version to publish:
+      # - If a version was supplied via workflow_dispatch input, use it.
+      # - Otherwise, read <VersionPrefix> from Directory.Build.props.
+      - name: Resolve package version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
+            echo "value=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Restore NuGet packages
+        run: dotnet restore src/EtpClient/EtpClient.csproj
+
+      - name: Build library (Release)
+        run: dotnet build src/EtpClient/EtpClient.csproj --configuration Release --no-restore
+
+      - name: Pack library (version ${{ steps.version.outputs.value }})
+        run: dotnet pack src/EtpClient/EtpClient.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.value }}
+
+      - name: Push package to GitHub Package Repository
+        run: |
+          dotnet nuget push "src/EtpClient/bin/Release/*.nupkg" \
+            --source "https://nuget.pkg.github.com/equinor/index.json" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --skip-duplicate
