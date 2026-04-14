@@ -81,7 +81,7 @@ public sealed class SpectreExplorerUi : IExplorerUi
         // Clear once to establish a fixed origin, then reuse cursor-home on every
         // subsequent frame so we overwrite in-place instead of blank-and-redraw.
         AnsiConsole.Clear();
-        System.Console.CursorVisible = false;
+        Console.CursorVisible = false;
         try
         {
             while (true)
@@ -89,18 +89,18 @@ public sealed class SpectreExplorerUi : IExplorerUi
                 ct.ThrowIfCancellationRequested();
                 RenderBrowseWorkspace(state, focusedColumnIndex, selectedIndices);
 
-                var keyInfo = System.Console.ReadKey(intercept: true);
+                var keyInfo = Console.ReadKey(intercept: true);
                 var key = keyInfo.Key;
 
                 // '/' opens the search/filter input (cross-platform via KeyChar)
                 if (keyInfo.KeyChar == '/')
                 {
-                    System.Console.CursorVisible = true;
-                    System.Console.SetCursorPosition(0, System.Console.WindowHeight - 1);
-                    System.Console.Write("\x1b[2K"); // clear line
-                    System.Console.Write("Search (empty to clear): ");
-                    var rawTerm = System.Console.ReadLine() ?? string.Empty;
-                    System.Console.CursorVisible = false;
+                    Console.CursorVisible = true;
+                    Console.SetCursorPosition(0, Console.WindowHeight - 1);
+                    Console.Write("\x1b[2K"); // clear line
+                    Console.Write("Search (empty to clear): ");
+                    var rawTerm = Console.ReadLine() ?? string.Empty;
+                    Console.CursorVisible = false;
                     return Task.FromResult(new BrowseWorkspaceResult
                     {
                         Action = BrowseWorkspaceAction.UpdateSearchTerm,
@@ -158,7 +158,7 @@ public sealed class SpectreExplorerUi : IExplorerUi
         }
         finally
         {
-            System.Console.CursorVisible = true;
+            Console.CursorVisible = true;
         }
     }
 
@@ -252,8 +252,8 @@ public sealed class SpectreExplorerUi : IExplorerUi
         // correct even when the first render caused the terminal to scroll.
         // Only emit raw ANSI when the terminal is interactive and supports escape sequences;
         // redirected or non-ANSI output would otherwise show the codes as garbage.
-        if (_lastStreamRenderLines > 0 && !System.Console.IsOutputRedirected && AnsiConsole.Profile.Capabilities.Ansi)
-            System.Console.Write($"\x1b[{_lastStreamRenderLines}A\x1b[J");
+        if (_lastStreamRenderLines > 0 && !Console.IsOutputRedirected && AnsiConsole.Profile.Capabilities.Ansi)
+            Console.Write($"\x1b[{_lastStreamRenderLines}A\x1b[J");
 
         var table = new Table()
             .Border(TableBorder.Rounded)
@@ -289,14 +289,14 @@ public sealed class SpectreExplorerUi : IExplorerUi
 
     public Task<bool> PromptStopStreamingAsync(CancellationToken ct = default)
     {
-        if (System.Console.IsInputRedirected)
+        if (Console.IsInputRedirected)
             return Task.FromResult(false);
 
         try
         {
-            if (System.Console.KeyAvailable)
+            if (Console.KeyAvailable)
             {
-                var key = System.Console.ReadKey(intercept: true);
+                var key = Console.ReadKey(intercept: true);
                 if (key.Key == ConsoleKey.S || key.Key == ConsoleKey.Escape)
                     return Task.FromResult(true);
             }
@@ -348,9 +348,9 @@ public sealed class SpectreExplorerUi : IExplorerUi
         IReadOnlyList<int> selectedIndices)
     {
         // Cursor-home: overwrite in-place without a full clear to avoid flicker.
-        System.Console.SetCursorPosition(0, 0);
-        var windowHeight = System.Console.WindowHeight;
-        var windowWidth  = System.Console.WindowWidth;
+        Console.SetCursorPosition(0, 0);
+        var windowHeight = Console.WindowHeight;
+        var windowWidth  = Console.WindowWidth;
 
         // ── Header (full width) ───────────────────────────────────────────────
         var root    = state.SelectedRootNode?.Name ?? "(none)";
@@ -370,7 +370,7 @@ public sealed class SpectreExplorerUi : IExplorerUi
 
         // ── Compute layout ────────────────────────────────────────────────────
         // Measure cursor row after header so column height fills the gap precisely.
-        var headerEndRow = System.Console.CursorTop;
+        var headerEndRow = Console.CursorTop;
 
         var statusMessage = string.IsNullOrWhiteSpace(state.LastStatusMessage)
             ? "Use arrow keys to move, Enter to open, Space to add the focused node for streaming."
@@ -429,12 +429,12 @@ public sealed class SpectreExplorerUi : IExplorerUi
         AnsiConsole.Write(columnsSection);
         AnsiConsole.WriteLine();
         // Erase any stale content between the column area and the bottom section.
-        System.Console.Write("\x1b[J");
+        Console.Write("\x1b[J");
 
         // ── Bottom section: Status + Controls (pinned) ────────────────────────
         // Always jump unconditionally — column content and terminal resizes may
         // leave the cursor anywhere above bottomSectionTop.
-        System.Console.SetCursorPosition(0, bottomSectionTop);
+        Console.SetCursorPosition(0, bottomSectionTop);
 
         AnsiConsole.Write(new Panel($"[white]{Markup.Escape(statusMessage)}[/]")
             .Border(BoxBorder.Rounded)
@@ -450,7 +450,7 @@ public sealed class SpectreExplorerUi : IExplorerUi
 
         // Cursor is now at windowHeight-1 (the newline following the controls
         // bottom border). Erase the final row cleanly — no scroll triggered.
-        System.Console.Write("\x1b[J");
+        Console.Write("\x1b[J");
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Runtime.CompilerServices;
 using System.Text;
 using EtpClient.Diagnostics;
 using EtpClient.Models;
@@ -318,7 +319,7 @@ internal sealed class EtpSessionManager
     /// </summary>
     public async IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(
         IReadOnlyList<ChannelSubscriptionInfo> subscriptions,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        [EnumeratorCancellation] CancellationToken ct)
     {
         if (State != EtpConnectionState.Connected || _codec is null)
             throw new InvalidOperationException("StartChannelStreaming requires an active Connected session.");
