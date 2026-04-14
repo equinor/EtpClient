@@ -53,8 +53,8 @@ jobs:
     timeout-minutes: 5
     outputs:
       library: ${{ steps.filter.outputs.library }}
-      sample-console: ${{ steps.filter.outputs.sample-console }}
-      etp-explorer: ${{ steps.filter.outputs.etp-explorer }}
+      sample-console: ${{ steps.filter.outputs['sample-console'] }}
+      etp-explorer: ${{ steps.filter.outputs['etp-explorer'] }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
