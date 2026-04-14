@@ -117,7 +117,7 @@ jobs:
         run: dotnet test tests/EtpClient.UnitTests/EtpClient.UnitTests.csproj --configuration Release --no-build
 
       - name: Run integration tests
-        run: dotnet test tests/EtpClient.IntegrationTests/EtpClient.IntegrationTests.csproj --configuration Release --no-build
+        run: dotnet test tests/EtpClient.IntegrationTests/EtpClient.IntegrationTests.csproj --configuration Release --no-build --blame-hang-timeout 60s
 
   # ---------------------------------------------------------------------------
   # Build and test the EtpClient.SampleConsole sample application.
