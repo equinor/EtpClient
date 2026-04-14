@@ -93,6 +93,39 @@ public sealed class EtpSessionManagerChannelStreamingTests
     }
 
     [Fact]
+    public async Task StartChannelStreamingAsync_MultiSubscription_ContinuesAfterPartialRemove()
+    {
+        // Two subscriptions: server removes channel 10 first, then channel 11.
+        // The stream should continue after the first Remove and only complete once both are removed.
+        var dataFrame = BuildChannelDataFrame(
+            channelId: 11L, indexValue: 1000L, doubleValue: 1.5,
+            correlationId: 0L, messageId: 3L, finalPart: true);
+        var removeFrame1 = BuildChannelRemoveFrame(channelId: 10L, reason: "Partial stop", messageId: 4L);
+        var removeFrame2 = BuildChannelRemoveFrame(channelId: 11L, reason: "Final stop", messageId: 5L);
+        var transport = BuildHandshakeAndFrameTransport([dataFrame, removeFrame1, removeFrame2]);
+
+        var manager = new EtpSessionManager(transport, NullLogger.Instance);
+        await manager.ConnectAsync(DefaultOptions, CancellationToken.None);
+
+        var subscriptions = new[]
+        {
+            new ChannelSubscriptionInfo(10L, startLatest: true, receiveChangeNotifications: false),
+            new ChannelSubscriptionInfo(11L, startLatest: true, receiveChangeNotifications: false),
+        };
+        var events = new List<ChannelEvent>();
+        await foreach (var ev in manager.StartChannelStreamingAsync(subscriptions, CancellationToken.None))
+            events.Add(ev);
+
+        // Data, Remove(10), Remove(11) — should not stop early after Remove(10)
+        Assert.Equal(3, events.Count);
+        Assert.Equal(ChannelEventKind.Data, events[0].Kind);
+        Assert.Equal(ChannelEventKind.Remove, events[1].Kind);
+        Assert.Equal(10L, events[1].ChannelId);
+        Assert.Equal(ChannelEventKind.Remove, events[2].Kind);
+        Assert.Equal(11L, events[2].ChannelId);
+    }
+
+    [Fact]
     public async Task StartChannelStreamingAsync_ServerSendsStatusChange_YieldsStatusChangeEvent()
     {
         var changeFrame = BuildChannelStatusChangeFrame(channelId: 3L, statusIndex: 1 /* Inactive */, messageId: 3L);

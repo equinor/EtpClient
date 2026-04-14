@@ -106,9 +106,6 @@ public sealed class ExplorerStreamingService
         {
             foreach (var rendered in formatter.Format(evt))
                 yield return rendered;
-
-            if (evt.Kind == EtpClient.Models.ChannelEventKind.Remove)
-                break;
         }
     }
 

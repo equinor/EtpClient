@@ -312,8 +312,9 @@ internal sealed class EtpSessionManager
     /// <summary>
     /// Starts live Protocol 1 channel streaming and yields <see cref="ChannelEvent"/> instances
     /// as the producer sends data, change, status, or remove messages.
-    /// The enumeration completes when a <c>ChannelRemove</c> is received or the cancellation
-    /// token is fired. <c>ProtocolException</c> causes an <see cref="EtpChannelStreamingException"/>.
+    /// The enumeration completes when all subscribed channels have been individually removed
+    /// by the server, or when the cancellation token is fired.
+    /// A <c>ProtocolException</c> causes an <see cref="EtpChannelStreamingException"/>.
     /// </summary>
     public async IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(
         IReadOnlyList<ChannelSubscriptionInfo> subscriptions,
@@ -326,6 +327,7 @@ internal sealed class EtpSessionManager
         var host = _host;
         var messageId = Interlocked.Increment(ref _nextMessageId);
         EtpClientLog.StreamingStarted(_logger, host, subscriptions.Count);
+        var removedChannelIds = new HashSet<long>(subscriptions.Count);
 
         await EnsureChannelStreamingProtocolStartedAsync(codec, ct).ConfigureAwait(false);
 
@@ -396,13 +398,15 @@ internal sealed class EtpSessionManager
             {
                 var (_, chanId, reason) = codec.DecodeChannelRemove(responseFrame);
                 EtpClientLog.StreamingChannelRemoved(_logger, host, chanId);
+                removedChannelIds.Add(chanId);
                 yield return new ChannelEvent
                 {
                     Kind = ChannelEventKind.Remove,
                     ChannelId = chanId,
                     RemoveReason = reason,
                 };
-                yield break; // producer signalled channel end
+                if (removedChannelIds.Count >= subscriptions.Count)
+                    yield break; // all subscribed channels removed by server
             }
             else if (header.MessageType == EtpMessageType.ProtocolException)
             {

@@ -589,9 +589,6 @@ public sealed class ExplorerApp
                     streamCts.Cancel();
                     break;
                 }
-
-                if (evt.Kind == EtpClient.Models.ChannelEventKind.Remove)
-                    break;
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
