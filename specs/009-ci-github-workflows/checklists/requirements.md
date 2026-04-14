@@ -32,5 +32,4 @@
 ## Notes
 
 - All items pass. Spec is ready for `/speckit.plan`.
-- NuGet publishing explicitly excluded from scope — noted in Assumptions.
 - Integration tests confirmed as in-process TestHost (no external server needed) — noted in Edge Cases and Assumptions.
