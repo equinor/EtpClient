@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <UserSecretsId>etp-client-integration-tests</UserSecretsId>
+    <!-- Test infrastructure uses WebHostBuilder + TestServer(IWebHostBuilder) which are
+         deprecated in favour of HostBuilder/WebApplication, but migrating the in-process
+         WebSocket test server is out of scope here. Suppress the analyzer diagnostics. -->
+    <NoWarn>$(NoWarn);ASPDEPR004;ASPDEPR008</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
