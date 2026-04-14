@@ -327,7 +327,8 @@ internal sealed class EtpSessionManager
         var host = _host;
         var messageId = Interlocked.Increment(ref _nextMessageId);
         EtpClientLog.StreamingStarted(_logger, host, subscriptions.Count);
-        var removedChannelIds = new HashSet<long>(subscriptions.Count);
+        // Deduplicated set of channel IDs we expect the server to remove before completing.
+        var remainingChannelIds = new HashSet<long>(subscriptions.Select(s => s.ChannelId));
 
         await EnsureChannelStreamingProtocolStartedAsync(codec, ct).ConfigureAwait(false);
 
@@ -398,14 +399,14 @@ internal sealed class EtpSessionManager
             {
                 var (_, chanId, reason) = codec.DecodeChannelRemove(responseFrame);
                 EtpClientLog.StreamingChannelRemoved(_logger, host, chanId);
-                removedChannelIds.Add(chanId);
+                remainingChannelIds.Remove(chanId); // no-op for unsubscribed or duplicate removes
                 yield return new ChannelEvent
                 {
                     Kind = ChannelEventKind.Remove,
                     ChannelId = chanId,
                     RemoveReason = reason,
                 };
-                if (removedChannelIds.Count >= subscriptions.Count)
+                if (remainingChannelIds.Count == 0)
                     yield break; // all subscribed channels removed by server
             }
             else if (header.MessageType == EtpMessageType.ProtocolException)
