@@ -52,7 +52,7 @@ public sealed class LiveConnectAsyncEncodingTests
 
     // ── JSON encoding against live server ─────────────────────────────────────
 
-    [LiveFact]
+    [LiveFact(Skip = "Requires a live server that supports JSON encoding")]
     public async Task ConnectAsync_LiveServer_JsonEncoding_Connects()
     {
         await using var client = BuildClient();
