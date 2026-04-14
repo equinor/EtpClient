@@ -222,6 +222,10 @@ public sealed class RequestChannelRangeAsyncTests : IDisposable
                 var openFrame = BuildOpenSessionFrame();
                 await ws.SendAsync(new ArraySegment<byte>(openFrame.ToArray()), WebSocketMessageType.Binary, true, CancellationToken.None);
 
+                // Consume Protocol 1 Start (client sends this before ChannelRangeRequest)
+                do { r = await ws.ReceiveAsync(new ArraySegment<byte>(buf), CancellationToken.None); }
+                while (!r.EndOfMessage && r.MessageType != WebSocketMessageType.Close);
+
                 // Consume ChannelRangeRequest and extract its messageId
                 do { r = await ws.ReceiveAsync(new ArraySegment<byte>(buf), CancellationToken.None); }
                 while (!r.EndOfMessage && r.MessageType != WebSocketMessageType.Close);

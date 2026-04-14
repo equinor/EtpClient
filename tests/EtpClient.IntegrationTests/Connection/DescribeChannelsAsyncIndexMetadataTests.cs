@@ -149,6 +149,15 @@ public sealed class DescribeChannelsAsyncIndexMetadataTests : IDisposable
                 var openFrame = BuildOpenSessionFrame();
                 await ws.SendAsync(new ArraySegment<byte>(openFrame.ToArray()), WebSocketMessageType.Binary, true, CancellationToken.None);
 
+                // Consume Protocol 1 Start (client sends this before ChannelDescribe)
+                ms.SetLength(0);
+                do
+                {
+                    r = await ws.ReceiveAsync(new ArraySegment<byte>(buf), CancellationToken.None);
+                    if (r.MessageType == WebSocketMessageType.Close) return;
+                    ms.Write(buf, 0, r.Count);
+                } while (!r.EndOfMessage);
+
                 // Consume ChannelDescribe
                 ms.SetLength(0);
                 do
