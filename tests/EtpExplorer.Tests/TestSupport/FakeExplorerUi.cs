@@ -122,7 +122,7 @@ public class FakeExplorerUi : IExplorerUi
 
     public void ResetStreamView() { }
 
-    public void RenderStreamSnapshot(StreamViewSnapshot snapshot) => StreamSnapshots.Add(snapshot);
+    public void RenderStreamSnapshot(StreamViewSnapshot snapshot) => StreamSnapshots.Add(CloneSnapshot(snapshot));
 
     public Task<bool> PromptStopStreamingAsync(CancellationToken ct = default)
     {
@@ -131,6 +131,26 @@ public class FakeExplorerUi : IExplorerUi
 
         return Task.FromResult(_stopStreamingResponses.Dequeue());
     }
+
+    private static StreamViewSnapshot CloneSnapshot(StreamViewSnapshot snapshot) => new()
+    {
+        StartedAtUtc = snapshot.StartedAtUtc,
+        IsActive = snapshot.IsActive,
+        Rows = snapshot.Rows
+            .Select(r => new StreamRowSnapshot
+            {
+                ChannelId = r.ChannelId,
+                ChannelName = r.ChannelName,
+                SourceResourceUri = r.SourceResourceUri,
+                PrimaryIndexText = r.PrimaryIndexText,
+                ValueText = r.ValueText,
+                StatusText = r.StatusText,
+                RowStatus = r.RowStatus,
+                LastEventKind = r.LastEventKind,
+                LastUpdatedAtUtc = r.LastUpdatedAtUtc,
+            })
+            .ToList(),
+    };
 
     private static ExplorerSessionState CloneState(ExplorerSessionState state) => new()
     {

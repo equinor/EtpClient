@@ -598,6 +598,7 @@ public sealed class ExplorerApp
         finally
         {
             snapshot.IsActive = false;
+            _ui.RenderStreamSnapshot(snapshot);
             // Best-effort stop
             await _streamingService.StopAsync(_client, _state.ActiveStreamChannels, ct).ConfigureAwait(false);
             _state.ActiveStreamChannels.Clear();

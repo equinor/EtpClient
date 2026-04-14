@@ -70,8 +70,8 @@ public sealed class ExplorerStreamingWorkflowTests
         var app = BuildApp(client, ui, selection);
         await app.RunAsync();
 
-        // 1 initial render + 5 event renders
-        Assert.Equal(6, ui.StreamSnapshots.Count);
+        // 1 initial render + 5 event renders + 1 final inactive render
+        Assert.Equal(7, ui.StreamSnapshots.Count);
     }
 
     // ── Stop streaming: user-initiated ────────────────────────────────────────
