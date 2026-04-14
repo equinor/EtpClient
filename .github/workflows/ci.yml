@@ -13,13 +13,26 @@
 
 name: CI
 
-# Triggers: pull requests and direct pushes to main
+# Triggers: pull requests and direct pushes to main, but only when
+# code, tests, samples, central package versions, or this workflow change.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'Directory.Packages.props'
+      - '.github/workflows/ci.yml'
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'Directory.Packages.props'
+      - '.github/workflows/ci.yml'
 
 # Cancel in-flight runs for the same ref when a new commit is pushed.
 # This keeps PRs responsive and avoids wasting runner minutes on stale runs.
