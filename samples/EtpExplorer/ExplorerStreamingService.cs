@@ -18,12 +18,13 @@ public sealed class ExplorerStreamingService
 
     /// <summary>
     /// Builds the list of channel subscriptions from the current selection set.
-    /// All subscriptions use start-latest streaming.
+    /// All subscriptions use start-latest streaming with change notifications enabled
+    /// so that compliant servers deliver ChannelDataChange events.
     /// </summary>
     public IReadOnlyList<ChannelSubscriptionInfo> BuildSubscriptions(IReadOnlyList<SelectedEndpoint> selection)
     {
         return selection
-            .Select(s => new ChannelSubscriptionInfo(s.Endpoint.ChannelId, startLatest: true, receiveChangeNotifications: false))
+            .Select(s => new ChannelSubscriptionInfo(s.Endpoint.ChannelId, startLatest: true, receiveChangeNotifications: true))
             .ToList();
     }
 
