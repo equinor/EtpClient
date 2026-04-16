@@ -3,8 +3,7 @@
 # Runs on every push to main and does two things:
 #
 #   1. Opens (or updates) a Release PR that:
-#        - bumps version.txt and <VersionPrefix> in Directory.Build.props
-#        - generates / appends to CHANGELOG.md
+#        - updates .release-please-manifest.json, CHANGELOG.md, and <VersionPrefix> in Directory.Build.props
 #        - uses Conventional Commit messages to determine the semver bump
 #
 #   2. When that Release PR is merged, automatically:
