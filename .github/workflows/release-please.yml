@@ -85,6 +85,7 @@ jobs:
           dotnet pack src/EtpClient/EtpClient.csproj
           --configuration Release
           --no-build
+          --no-restore
           -p:PackageVersion=${{ needs.release-please.outputs.version }}
 
       - name: Push package to GitHub Package Repository
