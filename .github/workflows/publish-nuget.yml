@@ -9,7 +9,7 @@
 # Supply a version explicitly; if omitted the version is read from
 # <VersionPrefix> in Directory.Build.props.
 #
-# Authentication uses the built-in GITHUB_TOKEN — no PAT required.
+# Authentication uses a NUGET_API_KEY repository secret (nuget.org API key).
 
 name: Publish NuGet
 
@@ -22,14 +22,12 @@ on:
         required: false
         type: string
 
-# Read repository contents, write to GitHub Packages
 permissions:
-  contents: read
-  packages: write
+  contents: read  # checkout only
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Pack the EtpClient library and push it to the GitHub Package Repository.
+  # Pack the EtpClient library and push it to nuget.org.
   # ---------------------------------------------------------------------------
   publish:
     name: Pack and publish EtpClient
@@ -68,9 +66,9 @@ jobs:
       - name: Pack library (version ${{ steps.version.outputs.value }})
         run: dotnet pack src/EtpClient/EtpClient.csproj --configuration Release --no-build -p:PackageVersion=${{ steps.version.outputs.value }}
 
-      - name: Push package to GitHub Package Repository
+      - name: Push package to nuget.org
         run: |
           dotnet nuget push "src/EtpClient/bin/Release/*.nupkg" \
-            --source "https://nuget.pkg.github.com/equinor/index.json" \
-            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --source "https://api.nuget.org/v3/index.json" \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
             --skip-duplicate

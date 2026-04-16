@@ -9,12 +9,17 @@
 #   2. When that Release PR is merged, automatically:
 #        - creates a GitHub Release with the generated changelog body
 #        - tags the commit (e.g. v0.2.0)
-#        - packs and pushes the EtpClient NuGet package to GitHub Packages
+#        - packs and pushes the EtpClient NuGet package to nuget.org
+#
+# Required repository secret:
+#   NUGET_API_KEY — a nuget.org API key scoped to push the EtpClient package
 #
 # Conventional commit cheat-sheet (pre-1.0.0 behaviour configured in release-please-config.json):
 #   fix: / docs: / chore: / refactor:  → patch bump  (0.1.x)
 #   feat:                               → patch bump  (0.1.x)  [bump-patch-for-minor-pre-major]
 #   feat!: / fix!:                      → minor bump  (0.x.0)  [bump-minor-pre-major]
+#
+# Description must start with a capital letter, e.g. "feat: Add streaming support"
 #
 # Pre-requisite (one-time manual step):
 #   Repository Settings → Actions → General →
@@ -53,8 +58,9 @@ jobs:
           manifest-file: .release-please-manifest.json
 
   # ---------------------------------------------------------------------------
-  # Pack and publish the EtpClient NuGet package to GitHub Packages.
+  # Pack and publish the EtpClient NuGet package to nuget.org.
   # Only runs when a Release PR was just merged (i.e. a new release was tagged).
+  # Requires the NUGET_API_KEY repository secret.
   # ---------------------------------------------------------------------------
   publish-nuget:
     name: Publish NuGet
@@ -63,8 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: read   # checkout only
-      packages: write  # push to GitHub Packages
+      contents: read  # checkout only
 
     steps:
       - name: Checkout repository
@@ -92,9 +97,9 @@ jobs:
           --no-restore
           -p:PackageVersion=${{ needs.release-please.outputs.version }}
 
-      - name: Push package to GitHub Package Repository
+      - name: Push package to nuget.org
         run: |
           dotnet nuget push "src/EtpClient/bin/Release/*.nupkg" \
-            --source "https://nuget.pkg.github.com/equinor/index.json" \
-            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --source "https://api.nuget.org/v3/index.json" \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
             --skip-duplicate

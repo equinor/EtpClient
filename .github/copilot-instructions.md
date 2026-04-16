@@ -97,4 +97,5 @@ C# with .NET 10: Follow standard conventions
 - In xUnit tests, use `ITestOutputHelper` for diagnostic output instead of `Console.Write` or `Console.WriteLine`.
 - Make variable, constant, parameter, property, and field names follow standard C# naming conventions and remain compliant with Roslyn analyzers.
 - When a feature changes user-visible behavior, setup, samples, or documented client workflows, update the root `README.md` in the same change whenever its guidance is affected.
+- Conventional commit descriptions start with a capital letter: `feat: Add foo` not `feat: add foo`.
 <!-- MANUAL ADDITIONS END -->
