@@ -1,0 +1,100 @@
+# Release Please workflow for EtpClient
+#
+# Runs on every push to main and does two things:
+#
+#   1. Opens (or updates) a Release PR that:
+#        - updates .release-please-manifest.json, CHANGELOG.md, and <VersionPrefix> in Directory.Build.props
+#        - uses Conventional Commit messages to determine the semver bump
+#
+#   2. When that Release PR is merged, automatically:
+#        - creates a GitHub Release with the generated changelog body
+#        - tags the commit (e.g. v0.2.0)
+#        - packs and pushes the EtpClient NuGet package to GitHub Packages
+#
+# Conventional commit cheat-sheet (pre-1.0.0 behaviour configured in release-please-config.json):
+#   fix: / docs: / chore: / refactor:  → patch bump  (0.1.x)
+#   feat:                               → patch bump  (0.1.x)  [bump-patch-for-minor-pre-major]
+#   feat!: / fix!:                      → minor bump  (0.x.0)  [bump-minor-pre-major]
+#
+# Pre-requisite (one-time manual step):
+#   Repository Settings → Actions → General →
+#   "Allow GitHub Actions to create and approve pull requests" must be enabled.
+
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+# Restrict default token permissions for all jobs; each job declares only what it needs.
+permissions: {}
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write       # create releases and push tags
+      issues: write         # create/update release labels
+      pull-requests: write  # open and update Release PRs
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.version }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+
+    steps:
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # ---------------------------------------------------------------------------
+  # Pack and publish the EtpClient NuGet package to GitHub Packages.
+  # Only runs when a Release PR was just merged (i.e. a new release was tagged).
+  # ---------------------------------------------------------------------------
+  publish-nuget:
+    name: Publish NuGet
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read   # checkout only
+      packages: write  # push to GitHub Packages
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # .NET SDK version — update this single line when upgrading to a new major/minor
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet packages
+        run: dotnet restore src/EtpClient/EtpClient.csproj
+
+      - name: Build library (Release)
+        run: dotnet build src/EtpClient/EtpClient.csproj --configuration Release --no-restore
+
+      # Use the version emitted by release-please (e.g. "0.2.0") to stamp the package.
+      # This is the authoritative version — it matches the GitHub Release tag.
+      - name: Pack library (version ${{ needs.release-please.outputs.version }})
+        run: >
+          dotnet pack src/EtpClient/EtpClient.csproj
+          --configuration Release
+          --no-build
+          --no-restore
+          -p:PackageVersion=${{ needs.release-please.outputs.version }}
+
+      - name: Push package to GitHub Package Repository
+        run: |
+          dotnet nuget push "src/EtpClient/bin/Release/*.nupkg" \
+            --source "https://nuget.pkg.github.com/equinor/index.json" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --skip-duplicate

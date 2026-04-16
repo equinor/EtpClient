@@ -1,30 +1,24 @@
-# NuGet publish workflow for EtpClient
+# NuGet publish workflow for EtpClient — manual / emergency use only
 #
-# Triggered in two ways:
-#   1. Automatically: when Directory.Build.props changes on a push to main
-#      (i.e. the version was bumped as part of a merged PR). The version is
-#      read directly from <VersionPrefix> in Directory.Build.props.
-#   2. Manually: via workflow_dispatch with an optional version override.
-#      Omit the version to publish whatever is in Directory.Build.props;
-#      supply a value to override (e.g. for a pre-release).
+# Automated publishing is handled by release-please.yml: when a Release PR
+# is merged, release-please tags the commit and publish-nuget runs as part
+# of the same workflow.
 #
-# Authentication uses the built-in GITHUB_TOKEN — no PAT or repository secret
-# is required.
+# This workflow exists for out-of-band publishes, e.g. re-publishing a
+# specific version or pushing a pre-release without going through a Release PR.
+# Supply a version explicitly; if omitted the version is read from
+# <VersionPrefix> in Directory.Build.props.
+#
+# Authentication uses the built-in GITHUB_TOKEN — no PAT required.
 
 name: Publish NuGet
 
 on:
-  # Auto-publish when the version in Directory.Build.props changes on main
-  push:
-    branches: [main]
-    paths:
-      - 'Directory.Build.props'
-
-  # Manual override: leave version empty to use Directory.Build.props
+  # Manual trigger only — automated publishing is done via release-please.yml
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version override (leave empty to use Directory.Build.props)'
+        description: 'Version to publish (leave empty to read from Directory.Build.props)'
         required: false
         type: string
 
@@ -53,14 +47,15 @@ jobs:
 
       # Resolve the version to publish:
       # - If a version was supplied via workflow_dispatch input, use it.
-      # - Otherwise, read <VersionPrefix> from Directory.Build.props.
+      # - Otherwise, extract the semver value from the VersionPrefix line in
+      #   Directory.Build.props (strips the x-release-please-version marker).
       - name: Resolve package version
         id: version
         run: |
           if [ -n "${{ inputs.version }}" ]; then
             echo "value=${{ inputs.version }}" >> $GITHUB_OUTPUT
           else
-            VERSION=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
+            VERSION=$(grep -oP '\d+\.\d+\.\d+' Directory.Build.props | head -1)
             echo "value=$VERSION" >> $GITHUB_OUTPUT
           fi
 
