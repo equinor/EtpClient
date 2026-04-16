@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using EtpClient.Models;
 using Microsoft.Extensions.Logging;
 
@@ -99,7 +100,7 @@ public sealed class ExplorerStreamingService
         IExplorerClient client,
         IReadOnlyList<ChannelSubscriptionInfo> subscriptions,
         IReadOnlyList<SelectedEndpoint> selection,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        [EnumeratorCancellation] CancellationToken ct = default)
     {
         var formatter = new StreamEventFormatter(selection);
 

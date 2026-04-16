@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using EtpClient.Models;
 
 namespace EtpExplorer.Tests.TestSupport;
@@ -77,7 +78,7 @@ public sealed class FakeExplorerClient : IExplorerClient
 
     public async IAsyncEnumerable<EtpClient.Models.ChannelEvent> StartChannelStreamingAsync(
         IReadOnlyList<ChannelSubscriptionInfo> subscriptions,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        [EnumeratorCancellation] CancellationToken ct = default)
     {
         StartStreamingCallCount++;
         foreach (var evt in StreamEvents)

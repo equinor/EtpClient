@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using EtpClient.Models;
 using EtpClient.Protocol;
 
@@ -36,7 +38,7 @@ public sealed class ChannelStreamingSessionCodecTests
         var frame = codec.EncodeChannelStreamingProtocolStart(maxMessageRate: 1, maxDataItems: 1024, messageId: 2L);
 
         var json = System.Text.Encoding.UTF8.GetString(frame.Span);
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
         Assert.Equal(EtpProtocol.ChannelStreaming, root[0].GetProperty("protocol").GetInt32());
@@ -84,10 +86,10 @@ public sealed class ChannelStreamingSessionCodecTests
         var frame = codec.EncodeChannelDescribe(["eml://witsml20/well"], messageId: 5L);
 
         var json = System.Text.Encoding.UTF8.GetString(frame.Span);
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
-        Assert.Equal(System.Text.Json.JsonValueKind.Array, root.ValueKind);
+        Assert.Equal(JsonValueKind.Array, root.ValueKind);
         Assert.Equal(2, root.GetArrayLength());
         Assert.Equal(EtpProtocol.ChannelStreaming, root[0].GetProperty("protocol").GetInt32());
         Assert.Equal(EtpChannelStreamingMessageType.ChannelDescribe, root[0].GetProperty("messageType").GetInt32());
@@ -102,7 +104,7 @@ public sealed class ChannelStreamingSessionCodecTests
         var frame = codec.EncodeChannelDescribe(uris, messageId: 4L);
 
         var json = System.Text.Encoding.UTF8.GetString(frame.Span);
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var body = doc.RootElement[1];
 
         var urisEl = body.GetProperty("uris");
@@ -198,7 +200,7 @@ public sealed class ChannelStreamingSessionCodecTests
         var frame = codec.EncodeChannelStreamingStart(subscriptions, messageId: 6L);
 
         var json = System.Text.Encoding.UTF8.GetString(frame.Span);
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
         Assert.Equal(EtpProtocol.ChannelStreaming, root[0].GetProperty("protocol").GetInt32());
@@ -212,7 +214,7 @@ public sealed class ChannelStreamingSessionCodecTests
         var frame = codec.EncodeChannelStreamingStop([7L, 8L], messageId: 7L);
 
         var json = System.Text.Encoding.UTF8.GetString(frame.Span);
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
         Assert.Equal(EtpProtocol.ChannelStreaming, root[0].GetProperty("protocol").GetInt32());
@@ -369,7 +371,7 @@ public sealed class ChannelStreamingSessionCodecTests
         var frame = codec.EncodeChannelRangeRequest(ranges, messageId: 21L);
 
         var json = System.Text.Encoding.UTF8.GetString(frame.Span);
-        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
         Assert.Equal(EtpProtocol.ChannelStreaming, root[0].GetProperty("protocol").GetInt32());
@@ -486,14 +488,14 @@ public sealed class ChannelStreamingSessionCodecTests
         long correlationId,
         bool finalPart)
     {
-        var channelsArray = new System.Text.Json.Nodes.JsonArray();
+        var channelsArray = new JsonArray();
         foreach (var ch in channels)
         {
-            channelsArray.Add(new System.Text.Json.Nodes.JsonObject
+            channelsArray.Add(new JsonObject
             {
                 ["channelUri"] = ch.ChannelUri,
                 ["channelId"] = ch.ChannelId,
-                ["indexes"] = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject
+                ["indexes"] = new JsonArray(new JsonObject
                 {
                     ["indexType"] = ch.IndexType,
                     ["uom"] = ch.IndexUom,
@@ -502,7 +504,7 @@ public sealed class ChannelStreamingSessionCodecTests
                     ["mnemonic"] = null,
                     ["description"] = null,
                     ["uri"] = null,
-                    ["customData"] = new System.Text.Json.Nodes.JsonObject(),
+                    ["customData"] = new JsonObject(),
                     ["scale"] = 3,
                     ["timeDatum"] = null,
                 }),
@@ -517,14 +519,14 @@ public sealed class ChannelStreamingSessionCodecTests
                 ["source"] = ch.Source,
                 ["measureClass"] = ch.MeasureClass,
                 ["uuid"] = null,
-                ["customData"] = new System.Text.Json.Nodes.JsonObject(),
+                ["customData"] = new JsonObject(),
                 ["domainObject"] = null,
             });
         }
 
-        var msg = new System.Text.Json.Nodes.JsonArray
+        var msg = new JsonArray
         {
-            new System.Text.Json.Nodes.JsonObject
+            new JsonObject
             {
                 ["protocol"] = EtpProtocol.ChannelStreaming,
                 ["messageType"] = EtpChannelStreamingMessageType.ChannelMetadata,
@@ -532,7 +534,7 @@ public sealed class ChannelStreamingSessionCodecTests
                 ["messageId"] = messageId,
                 ["messageFlags"] = finalPart ? EtpMessageFlags.FinalPart : 0,
             },
-            new System.Text.Json.Nodes.JsonObject
+            new JsonObject
             {
                 ["channels"] = channelsArray,
             },
@@ -682,24 +684,24 @@ public sealed class ChannelStreamingSessionCodecTests
         long correlationId,
         bool finalPart)
     {
-        var dataArray = new System.Text.Json.Nodes.JsonArray();
+        var dataArray = new JsonArray();
         foreach (var item in items)
         {
-            var indexesArray = new System.Text.Json.Nodes.JsonArray();
+            var indexesArray = new JsonArray();
             foreach (var idx in item.Indexes) indexesArray.Add(idx);
 
-            dataArray.Add(new System.Text.Json.Nodes.JsonObject
+            dataArray.Add(new JsonObject
             {
                 ["indexes"] = indexesArray,
                 ["channelId"] = item.ChannelId,
-                ["value"] = new System.Text.Json.Nodes.JsonObject { ["double"] = item.ValueAsDouble },
-                ["valueAttributes"] = new System.Text.Json.Nodes.JsonArray(),
+                ["value"] = new JsonObject { ["double"] = item.ValueAsDouble },
+                ["valueAttributes"] = new JsonArray(),
             });
         }
 
-        var msg = new System.Text.Json.Nodes.JsonArray
+        var msg = new JsonArray
         {
-            new System.Text.Json.Nodes.JsonObject
+            new JsonObject
             {
                 ["protocol"] = EtpProtocol.ChannelStreaming,
                 ["messageType"] = EtpChannelStreamingMessageType.ChannelData,
@@ -707,7 +709,7 @@ public sealed class ChannelStreamingSessionCodecTests
                 ["messageId"] = messageId,
                 ["messageFlags"] = finalPart ? EtpMessageFlags.FinalPart : 0,
             },
-            new System.Text.Json.Nodes.JsonObject { ["data"] = dataArray },
+            new JsonObject { ["data"] = dataArray },
         };
 
         return System.Text.Encoding.UTF8.GetBytes(msg.ToJsonString());
@@ -736,9 +738,9 @@ public sealed class ChannelStreamingSessionCodecTests
 
     private static ReadOnlyMemory<byte> BuildJsonChannelRemoveFrame(long channelId, string? removeReason, long messageId)
     {
-        var msg = new System.Text.Json.Nodes.JsonArray
+        var msg = new JsonArray
         {
-            new System.Text.Json.Nodes.JsonObject
+            new JsonObject
             {
                 ["protocol"] = EtpProtocol.ChannelStreaming,
                 ["messageType"] = EtpChannelStreamingMessageType.ChannelRemove,
@@ -746,7 +748,7 @@ public sealed class ChannelStreamingSessionCodecTests
                 ["messageId"] = messageId,
                 ["messageFlags"] = EtpMessageFlags.FinalPart,
             },
-            new System.Text.Json.Nodes.JsonObject
+            new JsonObject
             {
                 ["channelId"] = channelId,
                 ["removeReason"] = removeReason,

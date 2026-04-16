@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using EtpClient.Models;
 using EtpClient.Protocol;
 
@@ -166,9 +167,9 @@ public sealed class JsonSessionCodecTests
         Guid? serverId = null, string appName = "TestServer", string appVersion = "1.0")
     {
         var id = serverId ?? Guid.NewGuid();
-        var msg = new System.Text.Json.Nodes.JsonArray
+        var msg = new JsonArray
         {
-            new System.Text.Json.Nodes.JsonObject
+            new JsonObject
             {
                 ["protocol"] = 0,
                 ["messageType"] = EtpMessageType.OpenSession,
@@ -176,13 +177,13 @@ public sealed class JsonSessionCodecTests
                 ["messageId"] = 2L,
                 ["messageFlags"] = EtpMessageFlags.FinalPart,
             },
-            new System.Text.Json.Nodes.JsonObject
+            new JsonObject
             {
                 ["applicationName"] = appName,
                 ["applicationVersion"] = appVersion,
                 ["sessionId"] = id.ToString(),
-                ["supportedProtocols"] = new System.Text.Json.Nodes.JsonArray(),
-                ["supportedObjects"] = new System.Text.Json.Nodes.JsonArray(),
+                ["supportedProtocols"] = new JsonArray(),
+                ["supportedObjects"] = new JsonArray(),
             },
         };
 
