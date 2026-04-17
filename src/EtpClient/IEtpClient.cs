@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using EtpClient.Models;
 
 namespace EtpClient;
@@ -67,8 +68,11 @@ public interface IEtpClient : IAsyncDisposable
     /// <summary>
     /// Starts live Protocol 1 channel streaming for the specified subscriptions.
     /// Yields <see cref="ChannelEvent"/> instances as the producer sends data, change,
-    /// status, or remove messages. Completes when a <c>ChannelRemove</c> is received
-    /// or the cancellation token fires.
+    /// status, or remove messages. The enumeration completes only after the server has
+    /// sent a <c>ChannelRemove</c> for every channel ID in <paramref name="subscriptions"/>,
+    /// or when the cancellation token fires. Individual removals are yielded as
+    /// <see cref="ChannelEventKind.Remove"/> events so callers can react to each one;
+    /// the stream continues until the last subscribed channel is removed.
     /// </summary>
     /// <param name="subscriptions">Channels to subscribe to with their streaming parameters.</param>
     /// <param name="ct">Cancellation token.</param>
@@ -78,7 +82,7 @@ public interface IEtpClient : IAsyncDisposable
     /// <exception cref="EtpChannelStreamingException">
     /// Thrown when the server returns a <c>ProtocolException</c> during streaming.
     /// </exception>
-    IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(IReadOnlyList<ChannelSubscriptionInfo> subscriptions, CancellationToken ct = default);
+    IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(IReadOnlyList<ChannelSubscriptionInfo> subscriptions, [EnumeratorCancellation] CancellationToken ct = default);
 
     /// <summary>
     /// Sends a <c>ChannelStreamingStop</c> for the specified channel IDs.

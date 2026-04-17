@@ -13,7 +13,7 @@ namespace EtpClient.Connection;
 /// Thread-safety: one concurrent call to <see cref="ConnectAsync"/> or
 /// <see cref="CloseAsync"/> at a time.
 /// </summary>
-internal sealed class EtpSessionManager
+internal sealed class EtpSessionManager : IAsyncDisposable
 {
     private const int ReceiveBufferSize = 64 * 1024; // 64 KiB — large enough for OpenSession
     private const int Protocol1StartMaxMessageRate = 1;
@@ -667,5 +667,12 @@ internal sealed class EtpSessionManager
         var credentials = $"{username}:{password}";
         var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(credentials));
         return $"Basic {encoded}";
+    }
+
+    /// <inheritdoc/>
+    public async ValueTask DisposeAsync()
+    {
+        _channelStreamingStartLock.Dispose();
+        await _transport.DisposeAsync().ConfigureAwait(false);
     }
 }
