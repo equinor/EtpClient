@@ -18,7 +18,7 @@ namespace EtpClient;
 /// await client.CloseAsync();
 /// </code>
 /// </example>
-public sealed class EtpClient : IAsyncDisposable
+public sealed class EtpClient : IEtpClient
 {
     private readonly Func<IWebSocketTransport> _transportFactory;
     private readonly ILogger _logger;
