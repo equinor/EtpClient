@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/equinor/EtpClient/compare/v0.1.1...v0.1.2) (2026-04-17)
+
+
+### Features
+
+* Add IEtpClient interface ([#8](https://github.com/equinor/EtpClient/issues/8)) ([75ace9d](https://github.com/equinor/EtpClient/commit/75ace9db70fd804cfc5cc9537d6acd39004b2381))
+
 ## [0.1.1](https://github.com/equinor/EtpClient/compare/v0.1.0...v0.1.1) (2026-04-16)
 
 
