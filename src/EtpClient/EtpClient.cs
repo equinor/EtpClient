@@ -18,7 +18,7 @@ namespace EtpClient;
 /// await client.CloseAsync();
 /// </code>
 /// </example>
-public sealed class EtpClient : IAsyncDisposable
+public sealed class EtpClient : IEtpClient
 {
     private readonly Func<IWebSocketTransport> _transportFactory;
     private readonly ILogger _logger;
@@ -140,8 +140,11 @@ public sealed class EtpClient : IAsyncDisposable
     /// <summary>
     /// Starts live Protocol 1 channel streaming for the specified subscriptions.
     /// Yields <see cref="ChannelEvent"/> instances as the producer sends data, change,
-    /// status, or remove messages. Completes when a <c>ChannelRemove</c> is received
-    /// or the cancellation token fires.
+    /// status, or remove messages. The enumeration completes only after the server has
+    /// sent a <c>ChannelRemove</c> for every channel ID in <paramref name="subscriptions"/>,
+    /// or when the cancellation token fires. Individual removals are yielded as
+    /// <see cref="ChannelEventKind.Remove"/> events so callers can react to each one;
+    /// the stream continues until the last subscribed channel is removed.
     /// </summary>
     /// <param name="subscriptions">Channels to subscribe to with their streaming parameters.</param>
     /// <param name="ct">Cancellation token.</param>
@@ -209,12 +212,11 @@ public sealed class EtpClient : IAsyncDisposable
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        await CloseAsync().ConfigureAwait(false);
+        var manager = Interlocked.Exchange(ref _manager, null);
+        if (manager is null)
+            return;
 
-        if (_manager is not null)
-        {
-            // Transport is owned by the manager — disposing manager disposes its transport
-            // (IWebSocketTransport : IAsyncDisposable handled by ClientWebSocketTransport)
-        }
+        await manager.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+        await manager.DisposeAsync().ConfigureAwait(false);
     }
 }
