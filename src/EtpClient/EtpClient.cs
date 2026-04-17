@@ -212,11 +212,11 @@ public sealed class EtpClient : IEtpClient
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        await CloseAsync().ConfigureAwait(false);
+        var manager = Interlocked.Exchange(ref _manager, null);
+        if (manager is null)
+            return;
 
-        var manager = _manager;
-        _manager = null;
-        if (manager is not null)
-            await manager.DisposeAsync().ConfigureAwait(false);
+        await manager.CloseAsync().ConfigureAwait(false);
+        await manager.DisposeAsync().ConfigureAwait(false);
     }
 }

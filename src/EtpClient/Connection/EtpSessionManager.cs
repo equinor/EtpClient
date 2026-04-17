@@ -24,6 +24,7 @@ internal sealed class EtpSessionManager : IAsyncDisposable
     private readonly SemaphoreSlim _channelStreamingStartLock = new(1, 1);
 
     private volatile int _state = (int)EtpConnectionState.Closed;
+    private int _disposed;
 
     // Set after a successful Protocol 0 handshake; used by post-session operations.
     private IEtpSessionCodec? _codec;
@@ -672,6 +673,9 @@ internal sealed class EtpSessionManager : IAsyncDisposable
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
         _channelStreamingStartLock.Dispose();
         await _transport.DisposeAsync().ConfigureAwait(false);
     }
