@@ -216,7 +216,7 @@ public sealed class EtpClient : IEtpClient
         if (manager is null)
             return;
 
-        await manager.CloseAsync().ConfigureAwait(false);
+        await manager.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         await manager.DisposeAsync().ConfigureAwait(false);
     }
 }

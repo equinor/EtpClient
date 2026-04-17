@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using EtpClient.Models;
 
 namespace EtpClient;
@@ -82,7 +81,7 @@ public interface IEtpClient : IAsyncDisposable
     /// <exception cref="EtpChannelStreamingException">
     /// Thrown when the server returns a <c>ProtocolException</c> during streaming.
     /// </exception>
-    IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(IReadOnlyList<ChannelSubscriptionInfo> subscriptions, [EnumeratorCancellation] CancellationToken ct = default);
+    IAsyncEnumerable<ChannelEvent> StartChannelStreamingAsync(IReadOnlyList<ChannelSubscriptionInfo> subscriptions, CancellationToken ct = default);
 
     /// <summary>
     /// Sends a <c>ChannelStreamingStop</c> for the specified channel IDs.
