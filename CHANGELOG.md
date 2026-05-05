@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/equinor/EtpClient/compare/v0.1.2...v0.1.3) (2026-05-05)
+
+
+### Features
+
+* **instrumentation:** Add OpenTelemetry tracing and metrics ([#10](https://github.com/equinor/EtpClient/issues/10)) ([6b7f92c](https://github.com/equinor/EtpClient/commit/6b7f92cfb257adc10fa7985d29ba69bb549d2001))
+
 ## [0.1.2](https://github.com/equinor/EtpClient/compare/v0.1.1...v0.1.2) (2026-04-17)
 
 
