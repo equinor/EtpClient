@@ -22,6 +22,41 @@ The repository contains:
 - Request bounded historical ranges with `RequestChannelRangeAsync`.
 - Use either binary or JSON ETP message encoding.
 
+## OpenTelemetry instrumentation
+
+`EtpClient` can emit traces and metrics via the .NET `ActivitySource` and `Meter` APIs.
+Wire them into your OpenTelemetry pipeline with the two extension methods:
+
+```csharp
+services.AddOpenTelemetry()
+    .WithTracing(b => b.AddEtpInstrumentation())
+    .WithMetrics(b => b.AddEtpInstrumentation());
+```
+
+### Spans
+
+| Span name | Triggered by |
+|---|---|
+| `etp.connect` | `ConnectAsync` |
+| `etp.disconnect` | `CloseAsync` |
+| `etp.discovery` | `DiscoverResourcesAsync` |
+| `etp.channel.describe` | `DescribeChannelsAsync` |
+| `etp.channel.range_request` | `RequestChannelRangeAsync` |
+
+All spans carry `server.address` and `server.port` attributes. Operation spans additionally set
+`etp.uri` / `etp.channel_target`, `etp.resource_count` / `etp.channel_count` on success, and
+`etp.error_code` on ETP protocol errors.
+
+### Metrics
+
+| Instrument | Kind | Unit | Description |
+|---|---|---|---|
+| `etp.client.active_connections` | UpDownCounter | `{connection}` | Currently active sessions |
+| `etp.client.operation.duration` | Histogram | `s` | Duration of each operation |
+| `etp.client.operation.errors` | Counter | `{error}` | Failed operations |
+| `etp.client.messages.sent` | Counter | `{message}` | Outbound WebSocket frames |
+| `etp.client.messages.received` | Counter | `{message}` | Inbound WebSocket frames |
+
 ## Work in progress:
 
 - (Sample) Complete the EtpExplorer sample application. This is an interactive console application for navigating a ETP server which supports streaming data to the console. This is still a bit rough in the edges
@@ -180,6 +215,7 @@ The `specs/` folder contains focused quickstarts for the major library slices:
 | `specs/007-add-etp-explorer/quickstart.md` | Interactive explorer sample usage |
 | `specs/008-search-column-filter/quickstart.md` | Planned explorer column search and filtering workflow |
 | `specs/010-fix-streaming-list/quickstart.md` | Fixed-row streaming list validation steps |
+| `specs/011-otel-instrumentation/quickstart.md` | OpenTelemetry tracing and metrics setup |
 
 ## Build and test
 
