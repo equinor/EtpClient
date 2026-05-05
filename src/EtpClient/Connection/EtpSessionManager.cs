@@ -74,6 +74,11 @@ internal sealed class EtpSessionManager : IAsyncDisposable
             // Build Basic auth header — credentials used transiently, not stored
             var authHeader = BuildAuthorizationHeader(options.Username, options.Password);
 
+            // Assign _host/_port before the first send so metric tags are correct
+            // even for frames sent during the handshake itself.
+            _host = host;
+            _port = port;
+
             await _transport.ConnectAsync(
                 options.EndpointUri,
                 authHeader,
@@ -95,8 +100,6 @@ internal sealed class EtpSessionManager : IAsyncDisposable
 
             var result = ProcessResponse(responseFrame, host, options, codec);
             _codec = codec;
-            _host = host;
-            _port = port;
             _sessionInfo = result.Session;
 
             activity?.SetTag("etp.encoding", options.MessageEncoding == EtpMessageEncoding.Json ? "json" : "binary");
