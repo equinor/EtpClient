@@ -130,6 +130,42 @@ if (targetUri is not null)
 await client.CloseAsync(ct);
 ```
 
+## Starting from a specific index
+
+By default the examples above use `startLatest: true`, which asks the server to start each
+channel stream from its latest measured value (the ETP wire value is a null
+`StreamingStartIndex`). In practice, this typically means you receive the current/latest sample
+immediately, followed by subsequent updates.
+
+To replay historical data from a known index position, use the overload that accepts a
+`startIndexValue` instead:
+
+```csharp
+// Example: 2023-11-14T22:13:20Z expressed as Unix epoch microseconds
+long startUs = 1_700_000_000_000_000L;
+
+var subscriptions = description.Channels
+    .Select(channel => new ChannelSubscriptionInfo(
+        channel.ChannelId,
+        startIndexValue: startUs,
+        receiveChangeNotifications: false))
+    .ToList();
+```
+
+The meaning of `startIndexValue` depends on the channel's **index type**, reported in
+`ChannelDefinition.IndexType` from `DescribeChannelsAsync`:
+
+- **`"Time"`** — raw value is microseconds from the Unix epoch (1970-01-01T00:00:00Z), unless
+  `channel.IndexTimeDatum` is set, in which case it is microseconds from that ISO 8601 datum.
+- **`"Depth"`** — raw value is a scaled integer. Divide by `10^channel.IndexScale` to get the
+  physical depth in the units reported by `channel.IndexUom`.
+
+The value must match the **producer's index units exactly** — always check `IndexType`, `IndexUom`,
+`IndexScale`, and `IndexTimeDatum` on the `ChannelDefinition` before constructing the index.
+
+The server streams all recorded data points whose primary index is **≥ `startIndexValue`**, and
+then continues with live data until the subscription is stopped.
+
 ## Configuration notes
 
 The sample applications bind settings from the `Etp` configuration section. The required keys are:
