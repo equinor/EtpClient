@@ -141,10 +141,13 @@ To replay historical data from a known index position, use the overload that acc
 `startIndexValue` instead:
 
 ```csharp
+// Example: 2023-11-14T22:13:20Z expressed as Unix epoch microseconds
+long startUs = 1_700_000_000_000_000L;
+
 var subscriptions = description.Channels
     .Select(channel => new ChannelSubscriptionInfo(
         channel.ChannelId,
-        startIndexValue: 1_700_000_000_000L,   // index value in the channel's native units
+        startIndexValue: startUs,
         receiveChangeNotifications: false))
     .ToList();
 ```
@@ -156,6 +159,9 @@ The meaning of `startIndexValue` depends on the channel's **index type**, report
   `channel.IndexTimeDatum` is set, in which case it is microseconds from that ISO 8601 datum.
 - **`"Depth"`** — raw value is a scaled integer. Divide by `10^channel.IndexScale` to get the
   physical depth in the units reported by `channel.IndexUom`.
+
+The value must match the **producer's index units exactly** — always check `IndexType`, `IndexUom`,
+`IndexScale`, and `IndexTimeDatum` on the `ChannelDefinition` before constructing the index.
 
 The server streams all recorded data points whose primary index is **≥ `startIndexValue`**, and
 then continues with live data until the subscription is stopped.
