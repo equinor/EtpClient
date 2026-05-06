@@ -149,10 +149,13 @@ var subscriptions = description.Channels
     .ToList();
 ```
 
-The meaning of `startIndexValue` depends on the channel's **index type**, which is reported in
-`ChannelInfo.IndexTypes` from `DescribeChannelsAsync`. For time-indexed channels the value is
-typically Unix epoch in microseconds; for depth-indexed channels it is a depth value in the
-units declared by the server.
+The meaning of `startIndexValue` depends on the channel's **index type**, reported in
+`ChannelDefinition.IndexType` from `DescribeChannelsAsync`:
+
+- **`"Time"`** — raw value is microseconds from the Unix epoch (1970-01-01T00:00:00Z), unless
+  `channel.IndexTimeDatum` is set, in which case it is microseconds from that ISO 8601 datum.
+- **`"Depth"`** — raw value is a scaled integer. Divide by `10^channel.IndexScale` to get the
+  physical depth in the units reported by `channel.IndexUom`.
 
 The server streams all recorded data points whose primary index is **≥ `startIndexValue`**, and
 then continues with live data until the subscription is stopped.
