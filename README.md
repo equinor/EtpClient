@@ -130,6 +130,32 @@ if (targetUri is not null)
 await client.CloseAsync(ct);
 ```
 
+## Starting from a specific index
+
+By default the examples above use `startLatest: true`, which asks the server to stream only data
+that arrives **after** the subscription is established (the ETP wire value is a null
+`StreamingStartIndex`).
+
+To replay historical data from a known index position, use the overload that accepts a
+`startIndexValue` instead:
+
+```csharp
+var subscriptions = description.Channels
+    .Select(channel => new ChannelSubscriptionInfo(
+        channel.ChannelId,
+        startIndexValue: 1_700_000_000_000L,   // index value in the channel's native units
+        receiveChangeNotifications: false))
+    .ToList();
+```
+
+The meaning of `startIndexValue` depends on the channel's **index type**, which is reported in
+`ChannelInfo.IndexTypes` from `DescribeChannelsAsync`. For time-indexed channels the value is
+typically Unix epoch in microseconds; for depth-indexed channels it is a depth value in the
+units declared by the server.
+
+The server streams all recorded data points whose primary index is **≥ `startIndexValue`**, and
+then continues with live data until the subscription is stopped.
+
 ## Configuration notes
 
 The sample applications bind settings from the `Etp` configuration section. The required keys are:
