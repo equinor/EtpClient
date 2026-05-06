@@ -132,9 +132,10 @@ await client.CloseAsync(ct);
 
 ## Starting from a specific index
 
-By default the examples above use `startLatest: true`, which asks the server to stream only data
-that arrives **after** the subscription is established (the ETP wire value is a null
-`StreamingStartIndex`).
+By default the examples above use `startLatest: true`, which asks the server to start each
+channel stream from its latest measured value (the ETP wire value is a null
+`StreamingStartIndex`). In practice, this typically means you receive the current/latest sample
+immediately, followed by subsequent updates.
 
 To replay historical data from a known index position, use the overload that accepts a
 `startIndexValue` instead:
