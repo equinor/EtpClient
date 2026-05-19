@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0](https://github.com/equinor/EtpClient/compare/v0.1.3...v0.2.0) (2026-05-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **channel-streaming:** RequestChannelRangeAsync return type changed from Task<ChannelRangeResult> to IAsyncEnumerable<ChannelDataItem>. ChannelRangeResult and ChannelRangeResultState have been removed. SampleRunOutcome.ChannelRangeResult replaced by RangeRequest and RangeSamples properties.
+
+### Features
+
+* **channel-streaming:** Stream RequestChannelRangeAsync as IAsyncEn… ([#13](https://github.com/equinor/EtpClient/issues/13)) ([778f72c](https://github.com/equinor/EtpClient/commit/778f72ca56e4aeec55893f6b47110a48f62443cc))
+
 ## [0.1.3](https://github.com/equinor/EtpClient/compare/v0.1.2...v0.1.3) (2026-05-05)
 
 
