@@ -32,7 +32,7 @@ public sealed class EtpConnector : IEtpConnector
         _client.StopChannelStreamingAsync(channelIds, ct);
 
     /// <inheritdoc/>
-    public Task<ChannelRangeResult> RequestChannelRangeAsync(
+    public IAsyncEnumerable<ChannelDataItem> RequestChannelRangeAsync(
         ChannelRangeRequestModel request, CancellationToken ct) =>
         _client.RequestChannelRangeAsync(request, ct);
 

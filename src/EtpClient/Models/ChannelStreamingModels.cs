@@ -231,22 +231,6 @@ public sealed class ChannelDataItem
 
 // ── Range Request (User Story 3) ───────────────────────────────────────────────
 
-/// <summary>Identifies the outcome state of a bounded range request.</summary>
-public enum ChannelRangeResultState
-{
-    /// <summary>All parts were received and the result is complete.</summary>
-    Completed,
-
-    /// <summary>
-    /// The multipart response was interrupted by a reconnect;
-    /// the result must not be treated as complete.
-    /// </summary>
-    IncompleteAfterReconnect,
-
-    /// <summary>The server rejected the request.</summary>
-    Failed,
-}
-
 /// <summary>
 /// Represents one bounded historical data request for one or more channels.
 /// All channels must share a common index type, UOM, and direction.
@@ -261,24 +245,6 @@ public sealed class ChannelRangeRequestModel
 
     /// <summary>Primary index end value (inclusive).</summary>
     public required long ToIndex { get; init; }
-}
-
-/// <summary>
-/// The complete result of one <c>ChannelRangeRequest</c> operation.
-/// </summary>
-public sealed class ChannelRangeResult
-{
-    /// <summary>The request that produced this result.</summary>
-    public required ChannelRangeRequestModel Request { get; init; }
-
-    /// <summary>Data items returned for the requested range, in response order.</summary>
-    public required IReadOnlyList<ChannelDataItem> Samples { get; init; }
-
-    /// <summary><see langword="true"/> when the response arrived in multiple parts.</summary>
-    public required bool WasMultipart { get; init; }
-
-    /// <summary>Result outcome.</summary>
-    public required ChannelRangeResultState State { get; init; }
 }
 
 // ── Wire helpers (internal) ────────────────────────────────────────────────────

@@ -280,8 +280,10 @@ public sealed class EtpSessionManagerChannelStreamingTests
             ToIndex = 2L,
         };
 
-        await Assert.ThrowsAsync<EtpChannelStreamingException>(
-            () => manager.RequestChannelRangeAsync(request, CancellationToken.None));
+        await Assert.ThrowsAsync<EtpChannelStreamingException>(async () =>
+        {
+            await foreach (var _ in manager.RequestChannelRangeAsync(request, CancellationToken.None)) { }
+        });
 
         var headers = sentFrames.Select(frame => new BinaryEtpSessionCodec().DecodeHeader(frame)).ToList();
         Assert.Equal(3, headers.Count);
@@ -310,12 +312,12 @@ public sealed class EtpSessionManagerChannelStreamingTests
             FromIndex = 1000L,
             ToIndex = 2000L,
         };
-        var result = await manager.RequestChannelRangeAsync(request, CancellationToken.None);
+        var items = new List<ChannelDataItem>();
+        await foreach (var item in manager.RequestChannelRangeAsync(request, CancellationToken.None))
+            items.Add(item);
 
-        Assert.Equal(ChannelRangeResultState.Completed, result.State);
-        Assert.Single(result.Samples);
-        Assert.Equal(1L, result.Samples[0].ChannelId);
-        Assert.False(result.WasMultipart);
+        Assert.Single(items);
+        Assert.Equal(1L, items[0].ChannelId);
     }
 
     [Fact]
@@ -341,11 +343,11 @@ public sealed class EtpSessionManagerChannelStreamingTests
             FromIndex = 1000L,
             ToIndex = 2000L,
         };
-        var result = await manager.RequestChannelRangeAsync(request, CancellationToken.None);
+        var items = new List<ChannelDataItem>();
+        await foreach (var item in manager.RequestChannelRangeAsync(request, CancellationToken.None))
+            items.Add(item);
 
-        Assert.Equal(ChannelRangeResultState.Completed, result.State);
-        Assert.Equal(3, result.Samples.Count);
-        Assert.True(result.WasMultipart);
+        Assert.Equal(3, items.Count);
     }
 
     [Fact]
@@ -363,8 +365,10 @@ public sealed class EtpSessionManagerChannelStreamingTests
             FromIndex = 100L,
             ToIndex = 50L, // invalid
         };
-        var ex = await Assert.ThrowsAsync<EtpChannelStreamingException>(
-            () => manager.RequestChannelRangeAsync(request, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<EtpChannelStreamingException>(async () =>
+        {
+            await foreach (var _ in manager.RequestChannelRangeAsync(request, CancellationToken.None)) { }
+        });
 
         Assert.Equal(7, ex.EtpErrorCode);
     }
@@ -381,8 +385,52 @@ public sealed class EtpSessionManagerChannelStreamingTests
             FromIndex = 1000L,
             ToIndex = 2000L,
         };
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => manager.RequestChannelRangeAsync(request, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (var _ in manager.RequestChannelRangeAsync(request, CancellationToken.None)) { }
+        });
+    }
+
+    [Fact]
+    public async Task RequestChannelRangeAsync_PreCancelledToken_ThrowsOperationCanceledException()
+    {
+        var transport = BuildHandshakeAndFrameTransport([]);
+        var manager = new EtpSessionManager(transport, NullLogger.Instance);
+        await manager.ConnectAsync(DefaultOptions, CancellationToken.None);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var request = new ChannelRangeRequestModel
+        {
+            ChannelIds = [1L],
+            FromIndex = 1000L,
+            ToIndex = 2000L,
+        };
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (var _ in manager.RequestChannelRangeAsync(request, cts.Token)) { }
+        });
+    }
+
+    [Fact]
+    public async Task RequestChannelRangeAsync_UnexpectedMessageType_ThrowsEtpChannelStreamingException()
+    {
+        var unexpectedFrame = BuildUnexpectedCorrelatedFrame(correlationId: 2L);
+        var transport = BuildHandshakeAndFrameTransport([unexpectedFrame]);
+        var manager = new EtpSessionManager(transport, NullLogger.Instance);
+        await manager.ConnectAsync(DefaultOptions, CancellationToken.None);
+
+        var request = new ChannelRangeRequestModel
+        {
+            ChannelIds = [1L],
+            FromIndex = 1000L,
+            ToIndex = 2000L,
+        };
+        await Assert.ThrowsAsync<EtpChannelStreamingException>(async () =>
+        {
+            await foreach (var _ in manager.RequestChannelRangeAsync(request, CancellationToken.None)) { }
+        });
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -519,6 +567,19 @@ public sealed class EtpSessionManagerChannelStreamingTests
         w.WriteInt(EtpMessageFlags.FinalPart);
         w.WriteInt(errorCode);
         w.WriteString(message);
+        return w.ToArray();
+    }
+
+    private static ReadOnlyMemory<byte> BuildUnexpectedCorrelatedFrame(long correlationId)
+    {
+        // ChannelDescribe (type 1) is not ChannelData (3) and not ProtocolException — triggers else branch
+        var w = new AvroWriter();
+        w.WriteInt(EtpProtocol.ChannelStreaming);
+        w.WriteInt(EtpChannelStreamingMessageType.ChannelDescribe);
+        w.WriteLong(correlationId);
+        w.WriteLong(5L);
+        w.WriteInt(EtpMessageFlags.FinalPart);
+        w.WriteArrayStart(0); // minimal body
         return w.ToArray();
     }
 }

@@ -187,18 +187,22 @@ public sealed class EtpClient : IEtpClient
 
     /// <summary>
     /// Requests historical channel data for a bounded primary-index range using Protocol 1.
-    /// Aggregates multipart <c>ChannelData</c> responses into a single result.
+    /// <summary>
+    /// Requests historical channel data for a bounded primary-index range using Protocol 1.
+    /// Yields each <see cref="ChannelDataItem"/> as it is received from the server.
+    /// Enumeration completes when the server sends the final-part <c>ChannelData</c> message.
     /// </summary>
     /// <param name="request">Range request identifying channels, start index, and end index.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>A <see cref="ChannelRangeResult"/> containing all data for the requested range.</returns>
+    /// <returns>An async sequence of <see cref="ChannelDataItem"/> values streamed from the server.</returns>
     /// <exception cref="InvalidOperationException">
     /// Thrown when the session is not <see cref="EtpConnectionState.Connected"/>.
     /// </exception>
     /// <exception cref="EtpChannelStreamingException">
-    /// Thrown when the server returns a <c>ProtocolException</c>.
+    /// Thrown when the server returns a <c>ProtocolException</c> or an unexpected message type
+    /// during the range exchange.
     /// </exception>
-    public Task<ChannelRangeResult> RequestChannelRangeAsync(
+    public IAsyncEnumerable<ChannelDataItem> RequestChannelRangeAsync(
         ChannelRangeRequestModel request,
         CancellationToken ct = default)
     {

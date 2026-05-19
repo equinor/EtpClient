@@ -43,14 +43,14 @@ public sealed class RequestChannelRangeAsyncTests : IDisposable
             FromIndex = 1000L,
             ToIndex = 2000L,
         };
-        var result = await client.RequestChannelRangeAsync(request);
+        var samples = new List<ChannelDataItem>();
+        await foreach (var item in client.RequestChannelRangeAsync(request))
+            samples.Add(item);
 
-        Assert.Equal(ChannelRangeResultState.Completed, result.State);
-        Assert.Single(result.Samples);
-        Assert.Equal(1L, result.Samples[0].ChannelId);
-        Assert.Equal(1500L, result.Samples[0].Indexes[0]);
-        Assert.Equal(42.0, result.Samples[0].Value);
-        Assert.False(result.WasMultipart);
+        Assert.Single(samples);
+        Assert.Equal(1L, samples[0].ChannelId);
+        Assert.Equal(1500L, samples[0].Indexes[0]);
+        Assert.Equal(42.0, samples[0].Value);
     }
 
     // ── T026 [US3]: multipart response aggregation ────────────────────────────
@@ -77,13 +77,13 @@ public sealed class RequestChannelRangeAsyncTests : IDisposable
             FromIndex = 1000L,
             ToIndex = 2000L,
         };
-        var result = await client.RequestChannelRangeAsync(request);
+        var samples = new List<ChannelDataItem>();
+        await foreach (var item in client.RequestChannelRangeAsync(request))
+            samples.Add(item);
 
-        Assert.Equal(ChannelRangeResultState.Completed, result.State);
-        Assert.Equal(3, result.Samples.Count);
-        Assert.True(result.WasMultipart);
-        Assert.Equal(1000L, result.Samples[0].Indexes[0]);
-        Assert.Equal(2000L, result.Samples[2].Indexes[0]);
+        Assert.Equal(3, samples.Count);
+        Assert.Equal(1000L, samples[0].Indexes[0]);
+        Assert.Equal(2000L, samples[2].Indexes[0]);
     }
 
     // ── T026 [US3]: ProtocolException maps to EtpChannelStreamingException ────
@@ -105,8 +105,10 @@ public sealed class RequestChannelRangeAsyncTests : IDisposable
             FromIndex = 0L,
             ToIndex = 1000L,
         };
-        await Assert.ThrowsAsync<EtpChannelStreamingException>(() =>
-            client.RequestChannelRangeAsync(request));
+        await Assert.ThrowsAsync<EtpChannelStreamingException>(async () =>
+        {
+            await foreach (var _ in client.RequestChannelRangeAsync(request)) { }
+        });
     }
 
     // ── T026 [US3]: not connected throws ──────────────────────────────────────
@@ -121,8 +123,7 @@ public sealed class RequestChannelRangeAsyncTests : IDisposable
             FromIndex = 0L,
             ToIndex = 1000L,
         };
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            client.RequestChannelRangeAsync(request));
+        Assert.Throws<InvalidOperationException>(() => client.RequestChannelRangeAsync(request));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

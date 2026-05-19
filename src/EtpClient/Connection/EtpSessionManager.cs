@@ -577,12 +577,12 @@ internal sealed class EtpSessionManager : IAsyncDisposable
     }
 
     /// <summary>
-    /// Sends a <c>ChannelRangeRequest</c> and aggregates all correlated <c>ChannelData</c>
-    /// response parts into a single <see cref="ChannelRangeResult"/>.
+    /// Sends a <c>ChannelRangeRequest</c> and streams each <see cref="ChannelDataItem"/>
+    /// as its <c>ChannelData</c> frame arrives. Enumeration ends on the final-part frame.
     /// </summary>
-    public async Task<ChannelRangeResult> RequestChannelRangeAsync(
+    public async IAsyncEnumerable<ChannelDataItem> RequestChannelRangeAsync(
         ChannelRangeRequestModel request,
-        CancellationToken ct)
+        [EnumeratorCancellation] CancellationToken ct)
     {
         if (State != EtpConnectionState.Connected || _codec is null)
             throw new InvalidOperationException("RequestChannelRange requires an active Connected session.");
@@ -590,13 +590,15 @@ internal sealed class EtpSessionManager : IAsyncDisposable
         var codec = _codec;
         var host = _host;
         var messageId = Interlocked.Increment(ref _nextMessageId);
-        EtpClientLog.RangeRequestStarted(_logger, host, request.ChannelIds.Count);
+        EtpClientLog.RangeRequestStarted(_logger, host, request.ChannelIds.Count,
+            DateTimeOffset.FromUnixTimeMilliseconds(request.FromIndex).ToString("u"),
+            DateTimeOffset.FromUnixTimeMilliseconds(request.ToIndex).ToString("u"));
 
         using var activity = EtpInstrumentation.StartOperationActivity("etp.channel.range_request", host, _port);
         activity?.SetTag("etp.channel_count", request.ChannelIds.Count);
         var sw = Stopwatch.StartNew();
-        Exception? caughtEx = null;
-        int? caughtEtpErrorCode = null;
+        bool protocolError = false;
+        int? etpErrorCode = null;
 
         try
         {
@@ -609,12 +611,20 @@ internal sealed class EtpSessionManager : IAsyncDisposable
             var requestFrame = codec.EncodeChannelRangeRequest(ranges, messageId);
             await SendFrameAsync(requestFrame, codec.FrameType, ct).ConfigureAwait(false);
 
-            var samples = new List<ChannelDataItem>();
-            var wasMultipart = false;
+            var sampleCount = 0;
 
             while (true)
             {
-                var responseFrame = await ReceiveFullFrameAsync(codec.FrameType, ct).ConfigureAwait(false);
+                ReadOnlyMemory<byte> responseFrame;
+                try
+                {
+                    responseFrame = await ReceiveFullFrameAsync(codec.FrameType, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    yield break;
+                }
+
                 var header = codec.DecodeHeader(responseFrame);
 
                 // Ignore messages not correlated to this request
@@ -631,17 +641,27 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                     }
                     catch (Exception ex) when (ex is InvalidOperationException or ArgumentOutOfRangeException)
                     {
+                        protocolError = true;
+                        activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                        activity?.SetTag("error.type", ex.GetType().FullName);
                         throw new EtpChannelStreamingException(
                             $"Failed to decode ChannelData frame: {ex.Message}",
                             "(range request)",
                             etpErrorCode: null,
                             innerException: ex);
                     }
-                    samples.AddRange(items);
+
+                    foreach (var item in items)
+                    {
+                        yield return item;
+                        sampleCount++;
+                    }
+
                     if ((header.MessageFlags & EtpMessageFlags.FinalPart) != 0)
-                        break;
-                    // More parts are coming — mark as multipart
-                    wasMultipart = true;
+                    {
+                        EtpClientLog.RangeRequestCompleted(_logger, host, request.ChannelIds.Count, sampleCount);
+                        yield break;
+                    }
                 }
                 else if (header.MessageType == EtpMessageType.ProtocolException)
                 {
@@ -650,46 +670,23 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                         ? $"ETP error code {errorCode}"
                         : $"{message} (ETP error code {errorCode})";
                     EtpClientLog.RangeRequestFailed(_logger, host, errorCode);
+                    protocolError = true;
+                    etpErrorCode = errorCode;
+                    activity?.SetStatus(ActivityStatusCode.Error, detail);
+                    activity?.SetTag("error.type", typeof(EtpChannelStreamingException).FullName);
+                    activity?.SetTag("etp.error_code", errorCode);
                     throw new EtpChannelStreamingException(
                         $"ChannelRangeRequest failed: {detail}", "(range request)", errorCode);
                 }
                 else
                 {
-                    throw new EtpChannelStreamingException(
-                        $"Unexpected message (protocol={header.Protocol}, type={header.MessageType}) during ChannelRangeRequest.",
-                        "(range request)",
-                        etpErrorCode: null);
+                    var errMsg = $"Unexpected message (protocol={header.Protocol}, type={header.MessageType}) during ChannelRangeRequest.";
+                    protocolError = true;
+                    activity?.SetStatus(ActivityStatusCode.Error, errMsg);
+                    activity?.SetTag("error.type", typeof(EtpChannelStreamingException).FullName);
+                    throw new EtpChannelStreamingException(errMsg, "(range request)", etpErrorCode: null);
                 }
             }
-
-            EtpClientLog.RangeRequestCompleted(_logger, host, request.ChannelIds.Count, samples.Count);
-
-            activity?.SetStatus(ActivityStatusCode.Ok);
-
-            return new ChannelRangeResult
-            {
-                Request = request,
-                Samples = samples,
-                WasMultipart = wasMultipart,
-                State = ChannelRangeResultState.Completed,
-            };
-        }
-        catch (EtpChannelStreamingException ex)
-        {
-            caughtEx = ex;
-            caughtEtpErrorCode = ex.EtpErrorCode;
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            activity?.SetTag("error.type", ex.GetType().FullName);
-            if (ex.EtpErrorCode.HasValue)
-                activity?.SetTag("etp.error_code", ex.EtpErrorCode.Value);
-            throw;
-        }
-        catch (OperationCanceledException ex)
-        {
-            caughtEx = ex;
-            activity?.SetStatus(ActivityStatusCode.Error, "Cancelled");
-            activity?.SetTag("error.type", "System.OperationCanceledException");
-            throw;
         }
         finally
         {
@@ -698,8 +695,10 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                 sw.Elapsed.TotalSeconds,
                 new KeyValuePair<string, object?>("etp.operation", "channel.range_request"),
                 new KeyValuePair<string, object?>("server.address", host));
-            if (caughtEx is not null)
-                EtpInstrumentation.RecordOperationError("channel.range_request", host, caughtEtpErrorCode);
+            if (protocolError)
+                EtpInstrumentation.RecordOperationError("channel.range_request", host, etpErrorCode);
+            else
+                activity?.SetStatus(ActivityStatusCode.Ok);
         }
     }
 

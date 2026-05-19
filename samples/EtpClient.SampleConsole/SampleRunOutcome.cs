@@ -94,8 +94,11 @@ public sealed class SampleRunOutcome
     /// <summary>Live streaming result from the post-describe streaming session. Null if not requested or on failure.</summary>
     public LiveStreamingResult? LiveStreamingResult { get; }
 
-    /// <summary>Range request result from the post-describe bounded range query. Null if not requested or on failure.</summary>
-    public ChannelRangeResult? ChannelRangeResult { get; }
+    /// <summary>Range request model used for the bounded range query. Null if not requested or on failure.</summary>
+    public ChannelRangeRequestModel? RangeRequest { get; }
+
+    /// <summary>Data items collected from the bounded range query. Null if not requested or on failure.</summary>
+    public IReadOnlyList<ChannelDataItem>? RangeSamples { get; }
 
     private SampleRunOutcome(
         bool succeeded,
@@ -111,7 +114,8 @@ public sealed class SampleRunOutcome
         DiscoveryResult? discoveryResult = null,
         ChannelDescriptionResult? channelDescriptionResult = null,
         LiveStreamingResult? liveStreamingResult = null,
-        ChannelRangeResult? channelRangeResult = null)
+        ChannelRangeRequestModel? rangeRequest = null,
+        IReadOnlyList<ChannelDataItem>? rangeSamples = null)
     {
         Succeeded = succeeded;
         FinalState = finalState;
@@ -126,7 +130,8 @@ public sealed class SampleRunOutcome
         DiscoveryResult = discoveryResult;
         ChannelDescriptionResult = channelDescriptionResult;
         LiveStreamingResult = liveStreamingResult;
-        ChannelRangeResult = channelRangeResult;
+        RangeRequest = rangeRequest;
+        RangeSamples = rangeSamples;
     }
 
     /// <summary>Creates a success outcome from a completed connection result and optional discovery.</summary>
@@ -135,7 +140,8 @@ public sealed class SampleRunOutcome
         DiscoveryResult? discoveryResult = null,
         ChannelDescriptionResult? channelDescriptionResult = null,
         LiveStreamingResult? liveStreamingResult = null,
-        ChannelRangeResult? channelRangeResult = null) =>
+        ChannelRangeRequestModel? rangeRequest = null,
+        IReadOnlyList<ChannelDataItem>? rangeSamples = null) =>
         new(
             succeeded: true,
             finalState: EtpConnectionState.Connected,
@@ -150,7 +156,8 @@ public sealed class SampleRunOutcome
             discoveryResult: discoveryResult,
             channelDescriptionResult: channelDescriptionResult,
             liveStreamingResult: liveStreamingResult,
-            channelRangeResult: channelRangeResult);
+            rangeRequest: rangeRequest,
+            rangeSamples: rangeSamples);
 
     /// <summary>Creates a failure outcome from an <see cref="EtpConnectionException"/>.</summary>
     public static SampleRunOutcome FromException(EtpConnectionException ex, string endpointHost) =>

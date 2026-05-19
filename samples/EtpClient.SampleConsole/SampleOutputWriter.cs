@@ -156,24 +156,23 @@ public sealed class SampleOutputWriter
     /// <summary>Writes a channel range result summary to stdout.</summary>
     public void WriteChannelRange(SampleRunOutcome outcome)
     {
-        var range = outcome.ChannelRangeResult;
-        if (range is null)
+        var request = outcome.RangeRequest;
+        var samples = outcome.RangeSamples;
+        if (request is null || samples is null)
             return;
 
         _out.WriteLine();
         _out.WriteLine("=== Channel Range Result ===");
-        _out.WriteLine($"  Channels : {string.Join(", ", range.Request.ChannelIds)}");
-        _out.WriteLine($"  Range    : {range.Request.FromIndex} - {range.Request.ToIndex}");
-        _out.WriteLine($"  Samples  : {range.Samples.Count}");
-        _out.WriteLine($"  Multipart: {range.WasMultipart}");
-        _out.WriteLine($"  State    : {range.State}");
+        _out.WriteLine($"  Channels : {string.Join(", ", request.ChannelIds)}");
+        _out.WriteLine($"  Range    : {request.FromIndex} - {request.ToIndex}");
+        _out.WriteLine($"  Samples  : {samples.Count}");
 
-        if (range.Samples.Count > 0)
+        if (samples.Count > 0)
         {
             // Build channel lookup from description result if available
             var channelsById = BuildChannelsById(outcome);
             _out.WriteLine("  --- Samples ---");
-            foreach (var item in range.Samples)
+            foreach (var item in samples)
             {
                 var indexText = FormatPrimaryIndex(item, channelsById);
                 var name = channelsById.TryGetValue(item.ChannelId, out var ch)

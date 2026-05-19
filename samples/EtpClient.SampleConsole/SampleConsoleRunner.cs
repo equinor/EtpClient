@@ -165,12 +165,13 @@ public sealed class SampleConsoleRunner
                 }
             }
 
-            ChannelRangeResult? channelRangeResult = null;
+            ChannelRangeRequestModel? rangeRequest = null;
+            IReadOnlyList<ChannelDataItem>? rangeSamples = null;
             if (streamableChannels is { Count: > 0 }
                 && _options.ChannelRangeFromIndex.HasValue
                 && _options.ChannelRangeToIndex.HasValue)
             {
-                var rangeRequest = new ChannelRangeRequestModel
+                rangeRequest = new ChannelRangeRequestModel
                 {
                     ChannelIds = streamableChannels.Select(ch => ch.ChannelId).ToList(),
                     FromIndex = _options.ChannelRangeFromIndex.Value,
@@ -181,8 +182,11 @@ public sealed class SampleConsoleRunner
                 using var rangeCts = CreateProtocolRequestCancellationTokenSource(ct);
                 try
                 {
-                    channelRangeResult = await connector.RequestChannelRangeAsync(rangeRequest, rangeCts.Token).ConfigureAwait(false);
-                    _logger.LogInformation("Range request returned {Count} sample(s).", channelRangeResult.Samples.Count);
+                    var samples = new List<ChannelDataItem>();
+                    await foreach (var item in connector.RequestChannelRangeAsync(rangeRequest, rangeCts.Token).ConfigureAwait(false))
+                        samples.Add(item);
+                    rangeSamples = samples;
+                    _logger.LogInformation("Range request returned {Count} sample(s).", rangeSamples.Count);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
@@ -196,7 +200,7 @@ public sealed class SampleConsoleRunner
                 }
             }
 
-            var successOutcome = SampleRunOutcome.FromSuccess(result, discoveryResult, channelDescriptionResult, liveStreamingResult, channelRangeResult);
+            var successOutcome = SampleRunOutcome.FromSuccess(result, discoveryResult, channelDescriptionResult, liveStreamingResult, rangeRequest, rangeSamples);
             _outputWriter.WriteSuccess(successOutcome, _options.ShowSessionDetails);
             _outputWriter.WriteDiscovery(successOutcome);
             _outputWriter.WriteChannelDescription(successOutcome);

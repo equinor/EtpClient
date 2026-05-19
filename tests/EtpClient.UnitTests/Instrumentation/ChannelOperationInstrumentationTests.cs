@@ -182,7 +182,7 @@ public sealed class ChannelOperationInstrumentationTests
             FromIndex = 0L,
             ToIndex = 9999L,
         };
-        await manager.RequestChannelRangeAsync(request, CancellationToken.None);
+        await foreach (var _ in manager.RequestChannelRangeAsync(request, CancellationToken.None)) { }
         provider.ForceFlush();
 
         var span = exported.FirstOrDefault(a => a.OperationName == "etp.channel.range_request");
@@ -235,14 +235,45 @@ public sealed class ChannelOperationInstrumentationTests
         exported.Clear();
 
         var request = new ChannelRangeRequestModel { ChannelIds = [1L], FromIndex = 0L, ToIndex = 100L };
-        await Assert.ThrowsAsync<EtpChannelStreamingException>(
-            () => manager.RequestChannelRangeAsync(request, CancellationToken.None));
+        await Assert.ThrowsAsync<EtpChannelStreamingException>(async () =>
+        {
+            await foreach (var _ in manager.RequestChannelRangeAsync(request, CancellationToken.None)) { }
+        });
         provider.ForceFlush();
 
         var span = exported.FirstOrDefault(a => a.OperationName == "etp.channel.range_request");
         Assert.NotNull(span);
         Assert.Equal(ActivityStatusCode.Error, span.Status);
         Assert.Equal(7, (int)span.GetTagItem("etp.error_code")!);
+    }
+
+    // ── T015c: early-abandon produces OK span ─────────────────────────────────
+
+    [Fact]
+    public async Task RequestChannelRangeAsync_EarlyAbandon_ProducesOkSpan()
+    {
+        var exported = new List<Activity>();
+        using var provider = Sdk.CreateTracerProviderBuilder()
+            .AddEtpInstrumentation()
+            .AddInMemoryExporter(exported)
+            .Build();
+
+        var dataFrame = BuildChannelDataFrame(correlationId: 2L);
+        var transport = BuildTransport([dataFrame]);
+        var manager = new EtpSessionManager(transport, NullLogger.Instance);
+        await manager.ConnectAsync(DefaultOptions, CancellationToken.None);
+        exported.Clear();
+
+        var request = new ChannelRangeRequestModel { ChannelIds = [1L], FromIndex = 0L, ToIndex = 9999L };
+        // Abandon enumeration after the first item — early abandon
+        await foreach (var _ in manager.RequestChannelRangeAsync(request, CancellationToken.None))
+            break;
+
+        provider.ForceFlush();
+
+        var span = exported.FirstOrDefault(a => a.OperationName == "etp.channel.range_request");
+        Assert.NotNull(span);
+        Assert.Equal(ActivityStatusCode.Ok, span.Status);
     }
 
     // ── T015d: no spans when tracer not registered ────────────────────────────

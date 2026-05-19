@@ -32,9 +32,9 @@ public interface IEtpConnector : IAsyncDisposable
 
     /// <summary>
     /// Requests bounded historical data for one or more channels via Protocol 1 ChannelRangeRequest.
-    /// Aggregates multipart responses into a single result.
+    /// Yields each <see cref="ChannelDataItem"/> as it arrives from the server.
     /// </summary>
-    Task<ChannelRangeResult> RequestChannelRangeAsync(ChannelRangeRequestModel request, CancellationToken ct);
+    IAsyncEnumerable<ChannelDataItem> RequestChannelRangeAsync(ChannelRangeRequestModel request, CancellationToken ct);
 
     /// <summary>Sends a WebSocket close frame and transitions to closed state.</summary>
     Task CloseAsync(CancellationToken ct);

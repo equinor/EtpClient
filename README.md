@@ -166,6 +166,27 @@ The value must match the **producer's index units exactly** — always check `In
 The server streams all recorded data points whose primary index is **≥ `startIndexValue`**, and
 then continues with live data until the subscription is stopped.
 
+## Requesting a bounded historical range
+
+`RequestChannelRangeAsync` returns an `IAsyncEnumerable<ChannelDataItem>` that yields each
+data point as it arrives from the server:
+
+```csharp
+var request = new ChannelRangeRequestModel(
+    channelIds: description.Channels.Select(c => c.ChannelId).ToList(),
+    fromIndex: 1_700_000_000_000_000L,
+    toIndex:   1_700_100_000_000_000L);
+
+await foreach (var item in client.RequestChannelRangeAsync(request, ct))
+{
+    var indexText = string.Join(", ", item.Indexes);
+    Console.WriteLine($"[channel {item.ChannelId}] index={indexText} value={item.Value}");
+}
+```
+
+Index units follow the same conventions as live streaming — check `IndexType`, `IndexUom`,
+`IndexScale`, and `IndexTimeDatum` on the `ChannelDefinition` before constructing the range.
+
 ## Configuration notes
 
 The sample applications bind settings from the `Etp` configuration section. The required keys are:
