@@ -87,7 +87,7 @@ internal static partial class EtpClientLog
 
     [LoggerMessage(1018, LogLevel.Debug,
         "ETP channel range request started for {ChannelCount} channel(s) from '{FromIndex}' to '{ToIndex}'")]
-    public static partial void RangeRequestStarted(ILogger logger, string endpointHost, int channelCount, string fromIndex, string toIndex);
+    public static partial void RangeRequestStarted(ILogger logger, int channelCount, long fromIndex, long toIndex);
 
     [LoggerMessage(1019, LogLevel.Debug,
         "ETP channel range request returned {SampleCount} sample(s) for {ChannelCount} channel(s) at {EndpointHost}")]

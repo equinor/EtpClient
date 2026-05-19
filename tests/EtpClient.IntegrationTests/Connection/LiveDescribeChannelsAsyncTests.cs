@@ -47,8 +47,6 @@ public sealed class LiveDescribeChannelsAsyncTests
         var wellboreUid = "6541703c-a77d-4c1b-b9a8-08c51939d13f";
         var logUid = "MSP_Surface_Time_VLOG";
         _describeUri = $"eml://witsml14/well({wellUid})/wellbore({wellboreUid})/log({logUid})";
-        var foo =
-            "eml://witsml14/well(ddb2db2c-ffcc-429b-be07-2f76aa277f22)/wellbore(6541703c-a77d-4c1b-b9a8-08c51939d13f)/log(MSP_Surface_Time_VLOG)";
     }
 
     private static EtpClient BuildClient()

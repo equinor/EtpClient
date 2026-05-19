@@ -20,7 +20,6 @@ Auto-generated from all feature plans. Last updated: 2026-05-19
 - YAML (GitHub Actions), C# / .NET 10 + GitHub Actions built-in (`actions/checkout@v4`, `actions/setup-dotnet@v4`); `dorny/paths-filter@v3` for path-change detection (see research.md) (009-ci-github-workflows)
 - C# with .NET 10 + `EtpClient` project reference, `Spectre.Console`, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.Binder`, `Microsoft.Extensions.Configuration.UserSecrets`, `Microsoft.Extensions.Logging.Console`; test-time use of xUnit and fake explorer UI seams in `tests/EtpExplorer.Tests` (010-fix-streaming-list)
 - C# / .NET 10 + `OpenTelemetry` SDK (adds `TracerProviderBuilder` / `MeterProviderBuilder` extension point); `System.Diagnostics.ActivitySource` + `System.Diagnostics.Metrics.Meter` from BCL (no OTEL SDK reference needed for core instrumentation points) (011-otel-instrumentation)
-- C# with .NET 10 + `System.Net.WebSockets.ClientWebSocket`, `Microsoft.Extensions.Logging.Abstractions`, existing internal Avro helpers, `System.Runtime.CompilerServices.EnumeratorCancellation` (012-stream-channel-range)
 - C# with .NET 10 + `System.Net.WebSockets.ClientWebSocket`, `Microsoft.Extensions.Logging.Abstractions`, existing internal Avro reader/writer helpers, `System.Runtime.CompilerServices.EnumeratorCancellation` (012-stream-channel-range)
 
 ## Project Structure
@@ -88,7 +87,6 @@ C# with .NET 10: Follow standard conventions
 
 ## Recent Changes
 - 012-stream-channel-range: Added C# with .NET 10 + `System.Net.WebSockets.ClientWebSocket`, `Microsoft.Extensions.Logging.Abstractions`, existing internal Avro reader/writer helpers, `System.Runtime.CompilerServices.EnumeratorCancellation`
-- 012-stream-channel-range: Added C# with .NET 10 + `System.Net.WebSockets.ClientWebSocket`, `Microsoft.Extensions.Logging.Abstractions`, existing internal Avro helpers, `System.Runtime.CompilerServices.EnumeratorCancellation`
 - 011-otel-instrumentation: Added C# / .NET 10 + `OpenTelemetry` SDK (adds `TracerProviderBuilder` / `MeterProviderBuilder` extension point); `System.Diagnostics.ActivitySource` + `System.Diagnostics.Metrics.Meter` from BCL (no OTEL SDK reference needed for core instrumentation points)
 
 

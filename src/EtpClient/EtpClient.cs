@@ -187,8 +187,6 @@ public sealed class EtpClient : IEtpClient
 
     /// <summary>
     /// Requests historical channel data for a bounded primary-index range using Protocol 1.
-    /// <summary>
-    /// Requests historical channel data for a bounded primary-index range using Protocol 1.
     /// Yields each <see cref="ChannelDataItem"/> as it is received from the server.
     /// Enumeration completes when the server sends the final-part <c>ChannelData</c> message.
     /// </summary>

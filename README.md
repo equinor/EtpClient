@@ -172,10 +172,12 @@ then continues with live data until the subscription is stopped.
 data point as it arrives from the server:
 
 ```csharp
-var request = new ChannelRangeRequestModel(
-    channelIds: description.Channels.Select(c => c.ChannelId).ToList(),
-    fromIndex: 1_700_000_000_000_000L,
-    toIndex:   1_700_100_000_000_000L);
+var request = new ChannelRangeRequestModel
+{
+    ChannelIds = description.Channels.Select(c => c.ChannelId).ToList(),
+    FromIndex  = 1_700_000_000_000_000L,
+    ToIndex    = 1_700_100_000_000_000L,
+};
 
 await foreach (var item in client.RequestChannelRangeAsync(request, ct))
 {

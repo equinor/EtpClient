@@ -590,9 +590,7 @@ internal sealed class EtpSessionManager : IAsyncDisposable
         var codec = _codec;
         var host = _host;
         var messageId = Interlocked.Increment(ref _nextMessageId);
-        EtpClientLog.RangeRequestStarted(_logger, host, request.ChannelIds.Count,
-            DateTimeOffset.FromUnixTimeMilliseconds(request.FromIndex).ToString("u"),
-            DateTimeOffset.FromUnixTimeMilliseconds(request.ToIndex).ToString("u"));
+        EtpClientLog.RangeRequestStarted(_logger, request.ChannelIds.Count, request.FromIndex, request.ToIndex);
 
         using var activity = EtpInstrumentation.StartOperationActivity("etp.channel.range_request", host, _port);
         activity?.SetTag("etp.channel_count", request.ChannelIds.Count);
