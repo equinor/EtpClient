@@ -130,38 +130,33 @@ Execution steps:
     - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
     - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
 
-4. Sequential questioning loop (interactive):
-    - Present EXACTLY ONE question at a time.
+4. Sequential questioning loop:
+    - Present EXACTLY ONE question at a time using the `vscode_askQuestions` tool.
     - For multiple‑choice questions:
        - **Analyze all options** and determine the **most suitable option** based on:
           - Best practices for the project type
           - Common patterns in similar implementations
           - Risk reduction (security, performance, maintainability)
           - Alignment with any explicit project goals or constraints visible in the spec
-       - Present your **recommended option prominently** at the top with clear reasoning (1-2 sentences explaining why this is the best choice).
-       - Format as: `**Recommended:** Option [X] - <reasoning>`
-       - Then render all options as a Markdown table:
-
-       | Option | Description |
-       |--------|-------------|
-       | A | <Option A description> |
-       | B | <Option B description> |
-       | C | <Option C description> (add D/E as needed up to 5) |
-       | Short | Provide a different short answer (<=5 words) (Include only if free-form alternative is appropriate) |
-
-       - After the table, add: `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
+       - Call `vscode_askQuestions` with a single question entry:
+         - `header`: a short unique slug for the question (e.g. `"cancellation-behavior"`, max 50 chars)
+         - `question`: the question text (max 200 chars)
+         - `message`: 1–2 sentences explaining why the recommended option is the best choice
+         - `options`: one entry per option (2–5 items); mark the recommended option with `recommended: true`; include a free-text entry (label `"Other (short answer)"`) only when an open-ended answer is genuinely appropriate
+         - `allowFreeformInput: true` when a free-text "Other" entry is included; otherwise `false`
     - For short‑answer style (no meaningful discrete options):
-       - Provide your **suggested answer** based on best practices and context.
-       - Format as: `**Suggested:** <your proposed answer> - <brief reasoning>`
-       - Then output: `Format: Short answer (<=5 words). You can accept the suggestion by saying "yes" or "suggested", or provide your own answer.`
-    - After the user answers:
-       - If the user replies with "yes", "recommended", or "suggested", use your previously stated recommendation/suggestion as the answer.
-       - Otherwise, validate the answer maps to one option or fits the <=5 word constraint.
-       - If ambiguous, ask for a quick disambiguation (count still belongs to same question; do not advance).
-       - Once satisfactory, record it in working memory (do not yet write to disk) and move to the next queued question.
+       - Call `vscode_askQuestions` with a single question entry:
+         - `header`: a short unique slug
+         - `question`: the question text
+         - `message`: your suggested answer with brief reasoning (1–2 sentences)
+         - `allowFreeformInput: true`, no `options`
+    - After the tool returns the user's answer:
+       - Treat the returned value as the accepted answer.
+       - If the answer is ambiguous, call `vscode_askQuestions` again for a quick disambiguation (counts as the same question; do not advance to the next question).
+       - Once satisfactory, record it in working memory (do not yet write to disk) and advance to the next queued question.
     - Stop asking further questions when:
        - All critical ambiguities resolved early (remaining queued items become unnecessary), OR
-       - User signals completion ("done", "good", "no more"), OR
+       - User signals completion (e.g., free-text "done", "no more"), OR
        - You reach 5 asked questions.
     - Never reveal future queued questions in advance.
     - If no valid questions exist at start, immediately report no critical ambiguities.

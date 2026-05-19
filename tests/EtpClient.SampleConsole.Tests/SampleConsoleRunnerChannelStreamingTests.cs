@@ -209,8 +209,8 @@ public sealed class SampleConsoleRunnerChannelStreamingTests
         var outcome = await runner.RunAsync();
 
         Assert.True(outcome.Succeeded);
-        Assert.Null(outcome.ChannelRangeResult);
-        await connector.DidNotReceive().RequestChannelRangeAsync(
+        Assert.Null(outcome.RangeSamples);
+        connector.DidNotReceive().RequestChannelRangeAsync(
             Arg.Any<ChannelRangeRequestModel>(),
             Arg.Any<CancellationToken>());
     }

@@ -4,7 +4,7 @@ namespace EtpClient.UnitTests.Models;
 
 /// <summary>
 /// Unit tests for ChannelStreaming typed models:
-/// ChannelDefinition, ChannelDescriptionResult, ChannelDataItem, ChannelRangeResult,
+/// ChannelDefinition, ChannelDescriptionResult, ChannelDataItem, ChannelRangeRequestModel,
 /// EtpChannelStreamingException, and StreamingSubscriptionInfo.
 /// </summary>
 public sealed class ChannelStreamingModelsTests

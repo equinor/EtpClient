@@ -86,8 +86,8 @@ internal static partial class EtpClientLog
     public static partial void StreamingFailed(ILogger logger, string endpointHost, int? etpErrorCode);
 
     [LoggerMessage(1018, LogLevel.Debug,
-        "ETP channel range request started for {ChannelCount} channel(s) at {EndpointHost}")]
-    public static partial void RangeRequestStarted(ILogger logger, string endpointHost, int channelCount);
+        "ETP channel range request started for {ChannelCount} channel(s) from '{FromIndex}' to '{ToIndex}'")]
+    public static partial void RangeRequestStarted(ILogger logger, int channelCount, long fromIndex, long toIndex);
 
     [LoggerMessage(1019, LogLevel.Debug,
         "ETP channel range request returned {SampleCount} sample(s) for {ChannelCount} channel(s) at {EndpointHost}")]

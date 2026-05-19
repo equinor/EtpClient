@@ -1,6 +1,6 @@
 # EtpClient Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-05
+Auto-generated from all feature plans. Last updated: 2026-05-19
 
 ## Active Technologies
 - C# with .NET 10 + `EtpClient` project reference, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.UserSecrets`, `Microsoft.Extensions.Configuration.Binder`, `Microsoft.Extensions.Logging.Console` (002-sample-console-app)
@@ -20,6 +20,7 @@ Auto-generated from all feature plans. Last updated: 2026-05-05
 - YAML (GitHub Actions), C# / .NET 10 + GitHub Actions built-in (`actions/checkout@v4`, `actions/setup-dotnet@v4`); `dorny/paths-filter@v3` for path-change detection (see research.md) (009-ci-github-workflows)
 - C# with .NET 10 + `EtpClient` project reference, `Spectre.Console`, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.Binder`, `Microsoft.Extensions.Configuration.UserSecrets`, `Microsoft.Extensions.Logging.Console`; test-time use of xUnit and fake explorer UI seams in `tests/EtpExplorer.Tests` (010-fix-streaming-list)
 - C# / .NET 10 + `OpenTelemetry` SDK (adds `TracerProviderBuilder` / `MeterProviderBuilder` extension point); `System.Diagnostics.ActivitySource` + `System.Diagnostics.Metrics.Meter` from BCL (no OTEL SDK reference needed for core instrumentation points) (011-otel-instrumentation)
+- C# with .NET 10 + `System.Net.WebSockets.ClientWebSocket`, `Microsoft.Extensions.Logging.Abstractions`, existing internal Avro reader/writer helpers, `System.Runtime.CompilerServices.EnumeratorCancellation` (012-stream-channel-range)
 
 ## Project Structure
 
@@ -85,9 +86,8 @@ C# with .NET 10: Follow standard conventions
 - ChannelStreaming: `EtpChannelStreamingException` (not `InvalidOperationException`) for `ProtocolException` or unexpected protocol messages in Protocol 1 operations
 
 ## Recent Changes
+- 012-stream-channel-range: Added C# with .NET 10 + `System.Net.WebSockets.ClientWebSocket`, `Microsoft.Extensions.Logging.Abstractions`, existing internal Avro reader/writer helpers, `System.Runtime.CompilerServices.EnumeratorCancellation`
 - 011-otel-instrumentation: Added C# / .NET 10 + `OpenTelemetry` SDK (adds `TracerProviderBuilder` / `MeterProviderBuilder` extension point); `System.Diagnostics.ActivitySource` + `System.Diagnostics.Metrics.Meter` from BCL (no OTEL SDK reference needed for core instrumentation points)
-- 010-fix-streaming-list: Added C# with .NET 10 + `EtpClient` project reference, `Spectre.Console`, `Microsoft.Extensions.Hosting`, `Microsoft.Extensions.Configuration.Binder`, `Microsoft.Extensions.Configuration.UserSecrets`, `Microsoft.Extensions.Logging.Console`; test-time use of xUnit and fake explorer UI seams in `tests/EtpExplorer.Tests`
-- 009-ci-github-workflows: Added YAML (GitHub Actions), C# / .NET 10 + GitHub Actions built-in (`actions/checkout@v4`, `actions/setup-dotnet@v4`); `dorny/paths-filter@v3` for path-change detection (see research.md)
 
 
 <!-- MANUAL ADDITIONS START -->

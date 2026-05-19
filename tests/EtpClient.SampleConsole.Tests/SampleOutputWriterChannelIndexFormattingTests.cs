@@ -229,13 +229,6 @@ public sealed class SampleOutputWriterChannelIndexFormattingTests
             FromIndex = samples.Count > 0 ? samples[0].Indexes[0] : 0L,
             ToIndex = samples.Count > 0 ? samples[^1].Indexes[0] : 0L,
         };
-        var rangeResult = new ChannelRangeResult
-        {
-            Request = request,
-            Samples = samples,
-            WasMultipart = false,
-            State = ChannelRangeResultState.Completed,
-        };
         var descriptionResult = new ChannelDescriptionResult
         {
             RequestedUris = [$"eml://test/channel(C{channelId})"],
@@ -261,6 +254,7 @@ public sealed class SampleOutputWriterChannelIndexFormattingTests
         };
         return SampleRunOutcome.FromSuccess(connResult,
             channelDescriptionResult: descriptionResult,
-            channelRangeResult: rangeResult);
+            rangeRequest: request,
+            rangeSamples: samples);
     }
 }
