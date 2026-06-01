@@ -15,14 +15,14 @@ namespace EtpClient.Connection;
 /// Thread-safety: one concurrent call to <see cref="ConnectAsync"/> or
 /// <see cref="CloseAsync"/> at a time.
 /// </summary>
-internal sealed class EtpSessionManager : IAsyncDisposable
+internal sealed class EtpSessionManager(IWebSocketTransport transport, ILogger logger) : IAsyncDisposable
 {
     private const int ReceiveBufferSize = 64 * 1024; // 64 KiB — large enough for OpenSession
-    private const int Protocol1StartMaxMessageRate = 1;
-    private const int Protocol1StartMaxDataItems = int.MaxValue;
+    private const int Protocol1StartMaxMessageRate = 1000;
+    private const int Protocol1StartMaxDataItems = 10000;
 
-    private readonly IWebSocketTransport _transport;
-    private readonly ILogger _logger;
+    private readonly IWebSocketTransport _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+    private readonly ILogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly SemaphoreSlim _channelStreamingStartLock = new(1, 1);
 
     private volatile int _state = (int)EtpConnectionState.Closed;
@@ -37,12 +37,6 @@ internal sealed class EtpSessionManager : IAsyncDisposable
     private bool _channelStreamingProtocolStarted;
 
     public EtpConnectionState State => (EtpConnectionState)_state;
-
-    public EtpSessionManager(IWebSocketTransport transport, ILogger logger)
-    {
-        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
 
     public async Task<EtpConnectionResult> ConnectAsync(
         EtpConnectionOptions options,
@@ -254,16 +248,14 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                 if (header.CorrelationId != messageId)
                     continue;
 
-                if (header.Protocol == EtpProtocol.Discovery &&
-                    header.MessageType == EtpDiscoveryMessageType.GetResourcesResponse)
+                if (header is { Protocol: EtpProtocol.Discovery, MessageType: EtpDiscoveryMessageType.GetResourcesResponse })
                 {
                     var (_, resource) = codec.DecodeGetResourcesResponse(responseFrame);
                     resources.Add(resource);
                     if ((header.MessageFlags & EtpMessageFlags.FinalPart) != 0)
                         break;
                 }
-                else if (header.Protocol == EtpProtocol.Discovery &&
-                         header.MessageType == EtpMessageType.Acknowledge)
+                else if (header is { Protocol: EtpProtocol.Discovery, MessageType: EtpMessageType.Acknowledge })
                 {
                     wasEmptyAcknowledged = true;
                     break;
@@ -371,8 +363,7 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                 if (header.CorrelationId != messageId)
                     continue;
 
-                if (header.Protocol == EtpProtocol.ChannelStreaming &&
-                    header.MessageType == EtpChannelStreamingMessageType.ChannelMetadata)
+                if (header is { Protocol: EtpProtocol.ChannelStreaming, MessageType: EtpChannelStreamingMessageType.ChannelMetadata })
                 {
                     var (_, channelsBatch) = codec.DecodeChannelMetadata(responseFrame);
                     channels.AddRange(channelsBatch);
@@ -484,8 +475,7 @@ internal sealed class EtpSessionManager : IAsyncDisposable
 
             var header = codec.DecodeHeader(responseFrame);
 
-            if (header.Protocol == EtpProtocol.ChannelStreaming &&
-                header.MessageType == EtpChannelStreamingMessageType.ChannelData)
+            if (header is { Protocol: EtpProtocol.ChannelStreaming, MessageType: EtpChannelStreamingMessageType.ChannelData })
             {
                 IReadOnlyList<ChannelDataItem> items;
                 try
@@ -506,8 +496,7 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                     DataItems = items,
                 };
             }
-            else if (header.Protocol == EtpProtocol.ChannelStreaming &&
-                     header.MessageType == EtpChannelStreamingMessageType.ChannelDataChange)
+            else if (header is { Protocol: EtpProtocol.ChannelStreaming, MessageType: EtpChannelStreamingMessageType.ChannelDataChange })
             {
                 var (_, chanId, startIdx, endIdx) = codec.DecodeChannelDataChange(responseFrame);
                 yield return new ChannelEvent
@@ -518,8 +507,7 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                     EndIndex = endIdx,
                 };
             }
-            else if (header.Protocol == EtpProtocol.ChannelStreaming &&
-                     header.MessageType == EtpChannelStreamingMessageType.ChannelStatusChange)
+            else if (header is { Protocol: EtpProtocol.ChannelStreaming, MessageType: EtpChannelStreamingMessageType.ChannelStatusChange })
             {
                 var (_, chanId, newStatus) = codec.DecodeChannelStatusChange(responseFrame);
                 yield return new ChannelEvent
@@ -529,8 +517,7 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                     NewStatus = newStatus,
                 };
             }
-            else if (header.Protocol == EtpProtocol.ChannelStreaming &&
-                     header.MessageType == EtpChannelStreamingMessageType.ChannelRemove)
+            else if (header is { Protocol: EtpProtocol.ChannelStreaming, MessageType: EtpChannelStreamingMessageType.ChannelRemove })
             {
                 var (_, chanId, reason) = codec.DecodeChannelRemove(responseFrame);
                 EtpClientLog.StreamingChannelRemoved(_logger, host, chanId);
@@ -554,7 +541,10 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                 throw new EtpChannelStreamingException(
                     $"ChannelStreaming failed: {detail}", "(live stream)", errorCode);
             }
-            // Other frame types (e.g. unrelated protocol messages) are ignored
+            else
+            {
+                EtpClientLog.StreamingIgnoredUnexpectedMessage(_logger, host, header.Protocol, header.MessageType);
+            }
         }
     }
 
@@ -629,8 +619,7 @@ internal sealed class EtpSessionManager : IAsyncDisposable
                 if (header.CorrelationId != messageId)
                     continue;
 
-                if (header.Protocol == EtpProtocol.ChannelStreaming &&
-                    header.MessageType == EtpChannelStreamingMessageType.ChannelData)
+                if (header is { Protocol: EtpProtocol.ChannelStreaming, MessageType: EtpChannelStreamingMessageType.ChannelData })
                 {
                     IReadOnlyList<ChannelDataItem> items;
                     try
@@ -787,12 +776,11 @@ internal sealed class EtpSessionManager : IAsyncDisposable
     }
 
     private async ValueTask<ReadOnlyMemory<byte>> ReceiveFullFrameAsync(
-        System.Net.WebSockets.WebSocketMessageType expectedFrameType,
+        WebSocketMessageType expectedFrameType,
         CancellationToken ct)
     {
         var buffer = new byte[ReceiveBufferSize];
         var result = await _transport.ReceiveAsync(buffer, ct).ConfigureAwait(false);
-
         if (result.MessageType == WebSocketMessageType.Close)
         {
             throw new EtpConnectionException(
@@ -818,7 +806,7 @@ internal sealed class EtpSessionManager : IAsyncDisposable
         }
 
         // Multi-fragment fallback (uncommon for handshake messages)
-        using var ms = new System.IO.MemoryStream();
+        using var ms = new MemoryStream();
         ms.Write(buffer, 0, result.Count);
 
         while (!result.EndOfMessage)
