@@ -96,4 +96,8 @@ internal static partial class EtpClientLog
     [LoggerMessage(1020, LogLevel.Warning,
         "ETP channel range request failed at {EndpointHost}: etpErrorCode={EtpErrorCode}")]
     public static partial void RangeRequestFailed(ILogger logger, string endpointHost, int? etpErrorCode);
+
+    [LoggerMessage(1021, LogLevel.Debug,
+        "ETP channel streaming ignored unexpected message at {EndpointHost}: protocol={Protocol}, messageType={MessageType}")]
+    public static partial void StreamingIgnoredUnexpectedMessage(ILogger logger, string endpointHost, int protocol, int messageType);
 }

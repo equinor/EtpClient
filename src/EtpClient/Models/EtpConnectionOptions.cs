@@ -15,12 +15,10 @@ public sealed class EtpConnectionOptions
 
     private static readonly IReadOnlyList<SupportedProtocol> DefaultRequestedProtocols =
     [
-        new SupportedProtocol(
-            Protocol: 1,
+        new(Protocol: 1,
             Version: ProtocolVersion.Etp11,
             Role: "producer"),
-        new SupportedProtocol(
-            Protocol: 3,
+        new(Protocol: 3,
             Version: ProtocolVersion.Etp11,
             Role: "store"),
     ];
