@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/equinor/EtpClient/compare/v0.2.0...v0.2.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **session:** Adjust Protocol 1 limits and log ignored frames ([#15](https://github.com/equinor/EtpClient/issues/15)) ([6df5249](https://github.com/equinor/EtpClient/commit/6df524980c3ef1b19b70307b57e97c291ea1a1da))
+
 ## [0.2.0](https://github.com/equinor/EtpClient/compare/v0.1.3...v0.2.0) (2026-05-19)
 
 
